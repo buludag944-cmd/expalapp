@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.local
+expal.db
+expal.db-wal
+expal.db-shm
+.DS_Store

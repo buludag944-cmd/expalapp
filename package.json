@@ -1,0 +1,37 @@
+{
+  "name": "expal-api",
+  "version": "1.0.0",
+  "description": "EXPal Node.js API",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prestart": "node scripts/ensure-env-local.js && node scripts/free-port.js",
+    "start": "node src/server.js",
+    "dev": "node scripts/ensure-env-local.js && node scripts/free-port.js && nodemon src/server.js",
+    "dev:all": "node scripts/start-dev-all.js",
+    "start:server": "node scripts/free-port.js && node src/server.js",
+    "reset-db": "node scripts/reset-db.js",
+    "migrate:reset-columns": "node scripts/migrate-add-reset-columns.js",
+    "migrate:add-is-admin": "node scripts/migrate-add-is-admin.js",
+    "verify:smtp-resend": "node scripts/verify-smtp-resend.js",
+    "test:e2e-email": "node scripts/e2e-email-verify-flow.js",
+    "test:full-stack": "bash scripts/full-stack-verify-flow.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^6.10.1",
+    "sequelize": "^6.37.8",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
