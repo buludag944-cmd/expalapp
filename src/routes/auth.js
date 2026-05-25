@@ -10,7 +10,11 @@ const { fn, col, where } = require("sequelize");
 const { User } = require("../bootstrapModels");
 const jwt = require("jsonwebtoken");
 const { issueAuthTokenPayload, JWT_SECRET } = require("../config/jwt");
-const { sendVerificationEmail, sendResetEmail, smtpHostConfigured } = require("../services/email");
+const {
+  sendVerificationEmail,
+  sendResetEmail,
+  emailDeliveryConfigured,
+} = require("../services/email");
 
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 /** Password reset link TTL — configurable; default 60 minutes. */
@@ -128,9 +132,9 @@ function buildRegisterHandler() {
 
       console.log(`[register] verifyTokenExpiresAt=${verifyTokenExpiresAt.toISOString()}`);
 
-      if (!smtpHostConfigured()) {
+      if (!emailDeliveryConfigured()) {
         console.warn(
-          "[register] SMTP not configured — auto-verifying user (set SMTP_* on Render for email verification)"
+          "[register] No RESEND_API_KEY or SMTP — auto-verifying user (configure email on Render)"
         );
         user.isVerified = true;
         user.verifyToken = null;
@@ -279,7 +283,7 @@ function buildResendVerificationHandler() {
         return res.status(400).json({ error: "Email is required." });
       }
 
-      if (!smtpHostConfigured()) {
+      if (!emailDeliveryConfigured()) {
         console.log(`[resend] email=${email} sent=false reason=smtpNotConfigured`);
         return res.status(503).json({
           error:
@@ -354,7 +358,7 @@ function buildForgotPasswordHandler() {
         where: where(fn("lower", col("email")), email),
       });
 
-      if (user && smtpHostConfigured()) {
+      if (user && emailDeliveryConfigured()) {
         const resetToken = crypto.randomBytes(32).toString("hex");
         user.resetToken = resetToken;
         user.resetTokenExpiresAt = resetTokenExpiryDate();
@@ -372,8 +376,8 @@ function buildForgotPasswordHandler() {
         } catch (mailErr) {
           console.error("[forgot] reset email failed:", mailErr?.message ?? mailErr);
         }
-      } else if (user && !smtpHostConfigured()) {
-        console.warn("[forgot] SMTP not configured — no email sent");
+      } else if (user && !emailDeliveryConfigured()) {
+        console.warn("[forgot] No RESEND_API_KEY or SMTP — no email sent");
       }
 
       console.log(`[forgot] email=${email} issued=${issued}`);

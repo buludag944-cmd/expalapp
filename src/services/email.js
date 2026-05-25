@@ -1,27 +1,35 @@
 const nodemailer = require("nodemailer");
 
 /**
- * Real SMTP only (no Ethereal). Set SMTP_* in backend/.env — see backend/.env.example.
+ * Email delivery:
+ * - Render FREE tier blocks outbound SMTP (ports 25/465/587) → use Resend (HTTPS).
+ * - Local dev: SMTP (Gmail) or Resend.
  *
- * Gmail:
- *   1. Enable 2-Step Verification on your Google account.
- *   2. Create an App Password (Google Account → Security → App passwords).
- *   3. SMTP_HOST=smtp.gmail.com  SMTP_PORT=587  SMTP_SECURE=false
- *      SMTP_USER=you@gmail.com  SMTP_PASS=<16-char app password>
- *      MAIL_FROM="EXPal" <you@gmail.com>
+ * Resend (production on Render free):
+ *   RESEND_API_KEY=re_...
+ *   MAIL_FROM=EXPal <onboarding@resend.dev>   (testing — only to your Resend account email)
+ *   Or verify a domain at resend.com for any recipient.
  *
- * Brevo / Mailgun / Mailersend:
- *   Use SMTP host, port, user, and password from the provider dashboard.
- *   MAIL_FROM must be a verified sender domain/address.
- *   For production, configure SPF and DKIM on your domain for deliverability.
+ * Gmail SMTP (local Mac only — blocked on Render free):
+ *   SMTP_HOST=smtp.gmail.com SMTP_PORT=587 SMTP_SECURE=false
+ *   SMTP_USER=... SMTP_PASS=<app password> MAIL_FROM="EXPal" <you@gmail.com>
  */
 
 let cachedTransport = null;
 let startupLogged = false;
 
+function resendApiKeyConfigured() {
+  return !!(process.env.RESEND_API_KEY || "").trim();
+}
+
 function smtpHostConfigured() {
   const h = process.env.SMTP_HOST;
   return !!(h && String(h).trim());
+}
+
+/** True when Resend API or SMTP is configured. */
+function emailDeliveryConfigured() {
+  return resendApiKeyConfigured() || smtpHostConfigured();
 }
 
 function parseSmtpSecure() {
@@ -34,7 +42,7 @@ function getSmtpTransport() {
   const host = (process.env.SMTP_HOST || "").trim();
   if (!host) {
     throw new Error(
-      "SMTP_HOST is not set. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and MAIL_FROM to backend/.env (see .env.example)."
+      "SMTP_HOST is not set. Use RESEND_API_KEY on Render free tier, or SMTP_* locally."
     );
   }
 
@@ -49,6 +57,9 @@ function getSmtpTransport() {
       port,
       secure,
       auth: user && pass ? { user, pass } : undefined,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
     });
 
     if (!startupLogged) {
@@ -62,52 +73,88 @@ function getSmtpTransport() {
   return cachedTransport;
 }
 
-/** Log transport status when the server boots (warn if SMTP is missing). */
+async function sendViaResend({ to, subject, html, text }) {
+  const key = (process.env.RESEND_API_KEY || "").trim();
+  if (!key) {
+    throw new Error("RESEND_API_KEY is not set");
+  }
+  const from = process.env.MAIL_FROM || "EXPal <onboarding@resend.dev>";
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data.message || data.error || JSON.stringify(data);
+    throw new Error(`Resend API ${res.status}: ${detail}`);
+  }
+  console.log("[email] Resend accepted message", data.id ?? "(no id)");
+  return data;
+}
+
+async function sendMailMessage({ to, subject, html, text }) {
+  if (resendApiKeyConfigured()) {
+    return sendViaResend({ to, subject, html, text });
+  }
+  const transport = getSmtpTransport();
+  const info = await transport.sendMail({
+    from: process.env.MAIL_FROM || '"EXPal" <noreply@expal.local>',
+    to,
+    subject,
+    html,
+    text,
+  });
+  console.log("[email] SMTP accepted message", info.messageId ?? "(no id)");
+  return info;
+}
+
 function initEmailTransport() {
+  if (resendApiKeyConfigured()) {
+    console.log("[email] Using Resend HTTP API (works on Render free tier)");
+    startupLogged = true;
+    return;
+  }
   if (!smtpHostConfigured()) {
     console.warn(
-      "[email] SMTP_HOST not set — verification emails will fail until backend/.env is configured."
+      "[email] No RESEND_API_KEY or SMTP_HOST — verification/reset emails disabled until configured."
     );
     return;
   }
   getSmtpTransport();
 }
 
-/**
- * Send account verification email via SMTP.
- * Link: CLIENT_URL/verify/<token> (token is URL-encoded in the path).
- */
 async function sendVerificationEmail(toEmail, verifyToken) {
   const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(/\/$/, "");
   const tokenInPath = encodeURIComponent(verifyToken);
   const link = `${clientUrl}/verify/${tokenInPath}`;
 
-  const transport = getSmtpTransport();
-
-  const mail = {
-    from: process.env.MAIL_FROM || '"EXPal" <noreply@expal.local>',
-    to: toEmail,
-    subject: "Verify your EXPal account",
-    text: `Click here to activate your account\n\n${link}\n`,
-    html: `<p>Click here to activate your account</p><p><a href="${link}">${link}</a></p>`,
-  };
-
   try {
-    const info = await transport.sendMail(mail);
-    console.log("[email] SMTP accepted message", info.messageId ?? "(no id)");
-    return info;
+    return await sendMailMessage({
+      to: toEmail,
+      subject: "Verify your EXPal account",
+      text: `Click here to activate your account\n\n${link}\n`,
+      html: `<p>Click here to activate your account</p><p><a href="${link}">${link}</a></p>`,
+    });
   } catch (err) {
     const detail = err && err.message ? err.message : String(err);
-    console.error(`[email] sendMail failed: ${detail}`);
+    console.error(`[email] send failed: ${detail}`);
     throw err;
   }
 }
 
-/**
- * Password reset email — link: CLIENT_URL/reset/<token> (60 min TTL set in auth route).
- */
 async function sendResetEmail({ to, link }) {
-  const transport = getSmtpTransport();
   const subject = "Reset your EXPal password";
   const html = `
     <p>You requested a password reset.</p>
@@ -116,16 +163,14 @@ async function sendResetEmail({ to, link }) {
   `;
   const text = `You requested a password reset.\n\n${link}\n\nValid for 60 minutes. If you didn't request this, ignore this email.`;
 
-  const info = await transport.sendMail({
-    to,
-    from: process.env.MAIL_FROM || '"EXPal" <noreply@expal.local>',
-    subject,
-    html,
-    text,
-  });
-  console.log("[reset] reset email sent to", to);
-  console.log("[email] SMTP accepted message", info.messageId ?? "(no id)");
-  return info;
+  try {
+    await sendMailMessage({ to, subject, html, text });
+    console.log("[reset] reset email sent to", to);
+  } catch (err) {
+    const detail = err && err.message ? err.message : String(err);
+    console.error(`[email] send failed: ${detail}`);
+    throw err;
+  }
 }
 
 module.exports = {
@@ -133,4 +178,6 @@ module.exports = {
   sendResetEmail,
   initEmailTransport,
   smtpHostConfigured,
+  emailDeliveryConfigured,
+  resendApiKeyConfigured,
 };
