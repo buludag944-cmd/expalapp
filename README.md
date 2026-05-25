@@ -7,7 +7,7 @@ Node.js + Express + SQLite API for the [EXPal](https://expalapp.netlify.app) fro
 | Setting | Value |
 |--------|--------|
 | **Root Directory** | *(empty — repo root is this folder)* |
-| **Build Command** | `npm install` |
+| **Build Command** | `npm install && npm rebuild sqlite3 --build-from-source` |
 | **Start Command** | `node src/server.js` |
 | **Health check** | `/health` |
 

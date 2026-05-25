@@ -2,7 +2,7 @@ services:
   - type: web
     name: expal-api
     runtime: node
-    buildCommand: npm install
+    buildCommand: npm install && npm rebuild sqlite3 --build-from-source
     startCommand: node src/server.js
     healthCheckPath: /health
     envVars:
