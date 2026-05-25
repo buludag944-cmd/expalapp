@@ -128,14 +128,29 @@ function buildRegisterHandler() {
 
       console.log(`[register] verifyTokenExpiresAt=${verifyTokenExpiresAt.toISOString()}`);
 
+      if (!smtpHostConfigured()) {
+        console.warn(
+          "[register] SMTP not configured — auto-verifying user (set SMTP_* on Render for email verification)"
+        );
+        user.isVerified = true;
+        user.verifyToken = null;
+        user.verifyTokenExpiresAt = null;
+        await user.save();
+        return res.status(201).json({
+          ...issueAuthTokenPayload(user),
+          message: "Account created. Email verification is disabled until SMTP is configured on the server.",
+        });
+      }
+
       try {
         await sendVerificationEmail(email, verifyToken);
         console.log("[register] Verification email sent via SMTP");
       } catch (mailErr) {
         console.error("[register] Verification email failed:", mailErr?.message ?? mailErr);
+        await user.destroy();
         return res.status(503).json({
           error:
-            "Could not send verification email. Check SMTP_* and MAIL_FROM in backend/.env.",
+            "Could not send verification email. On Render, add SMTP_HOST, SMTP_USER, SMTP_PASS, and MAIL_FROM in Environment.",
         });
       }
 
