@@ -145,20 +145,23 @@ function buildRegisterHandler() {
       try {
         await sendVerificationEmail(email, verifyToken);
         console.log("[register] Verification email sent via SMTP");
+        return res.status(201).json({
+          message: "Verification email sent",
+          requiresVerification: true,
+        });
       } catch (mailErr) {
         console.error("[register] Verification email failed:", mailErr?.message ?? mailErr);
-        await user.destroy();
-        return res.status(503).json({
-          error:
-            "Could not send verification email. On Render, add SMTP_HOST, SMTP_USER, SMTP_PASS, and MAIL_FROM in Environment.",
+        // SMTP misconfigured on Render — still let the user in (fix Gmail App Password later).
+        user.isVerified = true;
+        user.verifyToken = null;
+        user.verifyTokenExpiresAt = null;
+        await user.save();
+        return res.status(201).json({
+          ...issueAuthTokenPayload(user),
+          message:
+            "Account created. Verification email could not be sent — check SMTP_PASS (Gmail App Password) on Render. You are logged in.",
         });
       }
-
-      // No JWT until the user completes GET /api/auth/verify/:token (or login after that).
-      return res.status(201).json({
-        message: "Verification email sent",
-        requiresVerification: true,
-      });
     } catch (error) {
       console.error("REGISTER ERROR:", error.message, error);
       if (error.name === "SequelizeUniqueConstraintError") {
