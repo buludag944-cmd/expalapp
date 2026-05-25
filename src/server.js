@@ -41,11 +41,7 @@ const app = express();
 // Default 3001 so the CRA dev server can use 3000; override with PORT
 const port = Number(process.env.PORT) || 3001;
 
-// JSON health — register first so no router or static handler can shadow /health
-app.get("/health", (_req, res) => {
-  res.status(200).json({ ok: true });
-});
-
+// CORS before /health — Netlify calls /health cross-origin before signup
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
@@ -55,6 +51,10 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
+});
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ ok: true });
 });
 
 // Must run before any router that reads req.body (events, auth, housing, etc.)
