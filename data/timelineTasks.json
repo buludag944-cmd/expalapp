@@ -1,0 +1,27 @@
+{
+  "default": [
+    { "title": "Research neighbourhoods", "description": "Compare areas by commute, rent, and expat community.", "category": "housing", "due_offset_days": -60, "phase": "relocation" },
+    { "title": "Confirm work permit / visa documents", "description": "Gather originals and copies before departure.", "category": "legal", "due_offset_days": -45, "phase": "relocation" },
+    { "title": "Arrange temporary accommodation", "description": "Book short-term stay for your first weeks.", "category": "housing", "due_offset_days": -30, "phase": "relocation" },
+    { "title": "Notify home country bank of move", "description": "Avoid card blocks and set travel notices.", "category": "banking", "due_offset_days": -14, "phase": "relocation" },
+    { "title": "Download offline maps + transport apps", "description": "Save maps and local transit apps before arrival.", "category": "social", "due_offset_days": -7, "phase": "relocation" },
+    { "title": "Get a local SIM card", "description": "Set up a local number for banking and admin.", "category": "admin", "due_offset_days": 1, "phase": "relocation" },
+    { "title": "Open a local bank account", "description": "Bring ID, proof of address, and employment letter.", "category": "banking", "due_offset_days": 3, "phase": "relocation" },
+    { "title": "Register address with local authority", "description": "Complete required registration for your visa.", "category": "legal", "due_offset_days": 7, "phase": "relocation" },
+    { "title": "Register with a GP / health centre", "description": "Enrol in local healthcare if applicable.", "category": "health", "due_offset_days": 14, "phase": "relocation" },
+    { "title": "Apply for tax number", "description": "Get your local tax ID (PPS, Steuer-ID, etc.).", "category": "legal", "due_offset_days": 21, "phase": "relocation" },
+    { "title": "Review health insurance coverage", "description": "Confirm public or private coverage meets your needs.", "category": "health", "due_offset_days": 30, "phase": "relocation" },
+    { "title": "Notify home country of address change", "description": "Update tax residency and electoral records if needed.", "category": "legal", "due_offset_days": 30, "phase": "integration" },
+    { "title": "Prepare for first local tax return", "description": "Collect payslips and employer statements.", "category": "legal", "due_offset_days": 60, "phase": "integration" },
+    { "title": "Verify residency clock is running", "description": "Confirm days present count toward PR eligibility.", "category": "legal", "due_offset_days": 90, "phase": "integration" },
+    { "title": "Check credential recognition status", "description": "Start professional qualification recognition if needed.", "category": "career", "due_offset_days": 120, "phase": "integration" },
+    { "title": "Run salary benchmark for your role", "description": "Compare your pay to local market rates.", "category": "career", "due_offset_days": 180, "phase": "integration" },
+    { "title": "File full tax return in destination country", "description": "Complete annual filing with local authority.", "category": "legal", "due_offset_days": 365, "phase": "establishment" },
+    { "title": "Check PR eligibility progress", "description": "Review days present and absence limits.", "category": "legal", "due_offset_days": 548, "phase": "establishment" },
+    { "title": "Review pension continuity", "description": "Understand cross-border pension implications.", "category": "career", "due_offset_days": 730, "phase": "establishment" },
+    { "title": "Check visa renewal requirements", "description": "Start renewal paperwork before expiry.", "category": "legal", "due_offset_days": 730, "phase": "establishment" },
+    { "title": "Citizenship pathway assessment", "description": "Review naturalisation requirements and timeline.", "category": "legal", "due_offset_days": 1095, "phase": "longterm" },
+    { "title": "Cross-border estate / will review", "description": "Update wills for assets in multiple countries.", "category": "legal", "due_offset_days": 1460, "phase": "longterm" },
+    { "title": "Return vs. stay reflection", "description": "Use community resources to evaluate long-term plans.", "category": "social", "due_offset_days": 1825, "phase": "longterm" }
+  ]
+}

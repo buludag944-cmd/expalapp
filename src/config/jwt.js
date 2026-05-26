@@ -8,7 +8,7 @@ function issueAuthTokenPayload(user) {
   const token = jwt.sign(
     { id: user.id, email: user.email, isAdmin },
     JWT_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "30d" }
   );
   return {
     token,
@@ -18,6 +18,17 @@ function issueAuthTokenPayload(user) {
       lastName: user.lastName,
       email: user.email,
       isAdmin,
+      nationality: user.nationality,
+      currentCity: user.currentCity,
+      destinationCountry: user.destinationCountry,
+      destinationCity: user.destinationCity,
+      arrivalDate: user.arrivalDate,
+      moveDate: user.moveDate,
+      phase: user.phase || "relocation",
+      onboardingComplete: !!user.onboardingComplete,
+      profession: user.profession,
+      professionCategory: user.professionCategory,
+      lifeAbroadScore: user.lifeAbroadScore || 0,
     },
   };
 }

@@ -28,10 +28,15 @@ const {
   KnowHowPost,
   Comment,
 } = require("./bootstrapModels");
+const journeyRouter = require("./routes/journey");
+const { seedForumSpacesIfEmpty } = require("./services/seedForums");
+const { migrateExpatFields } = require("./migrations/migrateExpatFields");
 const eventsRouter = require("./routes/events"); // GET/POST /api/events
 const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
 const adminRouter = require("./routes/admin");
+const pushRouter = require("./routes/push");
+const { sendPushToUser } = require("./services/push");
 const { initEmailTransport } = require("./services/email");
 const { verifyToken } = require("./middleware/auth");
 const { JWT_SECRET } = require("./config/jwt");
@@ -64,6 +69,8 @@ app.use(express.json()); // parse JSON request bodies
 app.use("/api/events", eventsRouter);
 // Comments on events, housing listings, or referral posts — POST /api/comments · GET …/:targetType/:targetId
 app.use("/api/comments", commentRoutes);
+app.use("/api/push", pushRouter);
+app.use("/api/journey", journeyRouter);
 
 app.get("/api/users", async (_req, res) => {
   try {
@@ -243,6 +250,28 @@ app.get("/api/profile", async (req, res) => {
       lastName: user.lastName,
       email: user.email,
       isAdmin: !!user.isAdmin,
+      nationality: user.nationality,
+      currentCity: user.currentCity,
+      company: user.company,
+      interests: user.interests,
+      industry: user.industry,
+      bio: user.bio,
+      profileImage: user.profileImage,
+      profession: user.profession,
+      professionCategory: user.professionCategory,
+      homeCountry: user.homeCountry,
+      destinationCountry: user.destinationCountry,
+      destinationCity: user.destinationCity,
+      moveDate: user.moveDate,
+      arrivalDate: user.arrivalDate,
+      visaType: user.visaType,
+      employerName: user.employerName,
+      familyStatus: user.familyStatus,
+      phase: user.phase,
+      onboardingComplete: !!user.onboardingComplete,
+      concerns: user.concerns,
+      isMentor: !!user.isMentor,
+      lifeAbroadScore: user.lifeAbroadScore || 0,
     });
   } catch (err) {
     res.status(401).json({ error: "Invalid email or password." });
@@ -299,18 +328,19 @@ app.put("/api/referrals/:id", async (req, res) => {
 // PUT update user profile
 app.put("/api/profile", verifyToken, async (req, res) => {
   try {
-    const { nationality, currentCity, interests, industry, bio, profileImage } = req.body;
-
+    const body = req.body || {};
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ error: "User not found" });
-    const updated = await user.update({
-      ...(nationality !== undefined ? { nationality } : {}),
-      ...(currentCity !== undefined ? { currentCity } : {}),
-      ...(interests !== undefined ? { interests } : {}),
-      ...(industry !== undefined ? { industry } : {}),
-      ...(bio !== undefined ? { bio } : {}),
-      ...(profileImage !== undefined ? { profileImage } : {}),
-    });
+    const allowed = [
+      "nationality", "currentCity", "interests", "industry", "bio", "profileImage",
+      "company", "profession", "professionCategory", "employerName", "languages",
+      "previousCountries", "profilePublic", "isMentor", "availabilityForMentorCalls",
+    ];
+    const patch = {};
+    for (const key of allowed) {
+      if (body[key] !== undefined) patch[key] = body[key];
+    }
+    const updated = await user.update(patch);
     res.json({
       id: updated.id,
       firstName: updated.firstName,
@@ -323,6 +353,15 @@ app.put("/api/profile", verifyToken, async (req, res) => {
       industry: updated.industry,
       bio: updated.bio,
       profileImage: updated.profileImage,
+      company: updated.company,
+      profession: updated.profession,
+      professionCategory: updated.professionCategory,
+      employerName: updated.employerName,
+      destinationCountry: updated.destinationCountry,
+      destinationCity: updated.destinationCity,
+      phase: updated.phase,
+      onboardingComplete: !!updated.onboardingComplete,
+      lifeAbroadScore: updated.lifeAbroadScore || 0,
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -365,6 +404,18 @@ app.post("/api/messages", verifyToken, async (req, res) => {
     const messageWithSender = await Message.findByPk(message.id, {
       include: [{ model: User, as: "Sender", attributes: ["id", "firstName", "lastName"] }],
     });
+
+    const sender = messageWithSender && messageWithSender.Sender;
+    const senderName = sender
+      ? `${sender.firstName || ""} ${sender.lastName || ""}`.trim() || "Someone"
+      : "Someone";
+    const preview = content.trim().slice(0, 120);
+    sendPushToUser(Number(receiverId), {
+      title: "New message on EXPal",
+      body: `${senderName}: ${preview}`,
+      data: { type: "message", peerId: String(req.user.id) },
+    }).catch((err) => console.error("[push] message notify:", err.message || err));
+
     res.status(201).json(messageWithSender);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -515,8 +566,19 @@ const DB_FORCE_RESET = process.env.DB_FORCE_RESET === "1";
 
 sequelize
   .sync(DB_FORCE_RESET ? { force: true } : {})
-  .then(() => {
+  .then(async () => {
     console.log(DB_FORCE_RESET ? "✅ Database FORCE reset (empty)" : "✅ Database synced");
+    try {
+      await migrateExpatFields(sequelize);
+    } catch (err) {
+      console.error("[migrate] expat fields:", err.message || err);
+      throw err;
+    }
+    try {
+      await seedForumSpacesIfEmpty();
+    } catch (err) {
+      console.warn("[seed] forum spaces:", err.message);
+    }
     try {
       initEmailTransport();
     } catch (err) {

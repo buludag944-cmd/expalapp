@@ -1,0 +1,13 @@
+{
+  "Software Engineer": {
+    "Dublin": { "min": 55000, "median": 75000, "max": 110000, "currency": "EUR" },
+    "Berlin": { "min": 50000, "median": 68000, "max": 95000, "currency": "EUR" },
+    "Amsterdam": { "min": 52000, "median": 72000, "max": 100000, "currency": "EUR" }
+  },
+  "Nurse": {
+    "Dublin": { "min": 38000, "median": 45000, "max": 55000, "currency": "EUR" }
+  },
+  "default": {
+    "default": { "min": 40000, "median": 55000, "max": 80000, "currency": "EUR" }
+  }
+}

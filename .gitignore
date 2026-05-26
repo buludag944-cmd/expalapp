@@ -1,7 +1,7 @@
-node_modules/
 .env
 .env.local
+node_modules/
 expal.db
 expal.db-wal
 expal.db-shm
-.DS_Store
+.e2e-email-verify.log

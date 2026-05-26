@@ -1,0 +1,13 @@
+[
+  { "name": "Tax & Finance", "description": "Tax filing, pensions, and money matters abroad.", "countryTag": true, "phaseTag": null },
+  { "name": "Banking & Money", "description": "Opening accounts, transfers, and local banking tips.", "countryTag": true, "phaseTag": null },
+  { "name": "Visa & Legal", "description": "Visas, permits, and immigration questions.", "countryTag": true, "phaseTag": null },
+  { "name": "Healthcare", "description": "GP registration, insurance, and local healthcare.", "countryTag": true, "phaseTag": null },
+  { "name": "Housing & Renting", "description": "Finding rentals, leases, and neighbourhood advice.", "countryTag": true, "phaseTag": null },
+  { "name": "Career & Work", "description": "Jobs, networking, and workplace culture.", "countryTag": false, "phaseTag": null },
+  { "name": "Family & Kids", "description": "Schools, childcare, and family relocation.", "countryTag": false, "phaseTag": null },
+  { "name": "Language & Culture", "description": "Language learning and cultural integration.", "countryTag": true, "phaseTag": "integration" },
+  { "name": "Mental Health & Identity", "description": "Wellbeing and identity abroad.", "countryTag": false, "phaseTag": "establishment" },
+  { "name": "Lifer Lounge", "description": "For long-term residents — life settled abroad.", "countryTag": false, "phaseTag": "longterm" },
+  { "name": "Return Planning", "description": "Considering or planning a move back home.", "countryTag": false, "phaseTag": "establishment" }
+]

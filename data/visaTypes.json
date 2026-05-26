@@ -1,0 +1,7 @@
+{
+  "Ireland": ["Critical Skills", "General Employment", "Stamp 1G", "Stamp 4", "EU Blue Card", "Student", "Other"],
+  "Germany": ["Blue Card EU", "Work Visa", "Job Seeker", "Family Reunion", "Student", "Other"],
+  "Netherlands": ["Highly Skilled Migrant", "Orientation Year", "Partner Visa", "Student", "Other"],
+  "United Kingdom": ["Skilled Worker", "Global Talent", "Graduate Route", "Family", "Student", "Other"],
+  "default": ["Work Permit", "Skilled Worker", "Partner / Family", "Student", "Digital Nomad", "Other"]
+}

@@ -5,6 +5,12 @@ const router = express.Router();
 const Comment = require("../models/Comment");
 const { THREAD_TYPES } = require("../models/Comment");
 const User = require("../models/User");
+const Event = require("../models/Event");
+const Housing = require("../models/Housing");
+const Referral = require("../models/Referral");
+const EssentialPost = require("../models/EssentialPost");
+const KnowHowPost = require("../models/KnowHowPost");
+const { sendPushToUser } = require("../services/push");
 
 // Keep in sync with Comment model THREAD_TYPES
 const ALLOWED_TARGET_TYPES = THREAD_TYPES;
@@ -15,6 +21,50 @@ function displayNameFromUserRow(u) {
   const last = (u.lastName ?? "").toString().trim();
   const full = `${first} ${last}`.trim();
   return full || null;
+}
+
+function commentDeepLinkPath(targetType, targetId) {
+  switch (targetType) {
+    case "event":
+      return "/events";
+    case "listing":
+      return "/housing";
+    case "referral":
+      return "/referrals";
+    case "essential":
+      return `/essentials/${targetId}`;
+    case "knowhow":
+      return `/knowhow/${targetId}`;
+    default:
+      return "/";
+  }
+}
+
+async function getPostOwnerUserId(targetType, targetId) {
+  switch (targetType) {
+    case "event": {
+      const row = await Event.findByPk(targetId, { attributes: ["createdBy"] });
+      return row?.createdBy ?? null;
+    }
+    case "listing": {
+      const row = await Housing.findByPk(targetId, { attributes: ["userId"] });
+      return row?.userId ?? null;
+    }
+    case "referral": {
+      const row = await Referral.findByPk(targetId, { attributes: ["userId"] });
+      return row?.userId ?? null;
+    }
+    case "essential": {
+      const row = await EssentialPost.findByPk(targetId, { attributes: ["createdBy"] });
+      return row?.createdBy ?? null;
+    }
+    case "knowhow": {
+      const row = await KnowHowPost.findByPk(targetId, { attributes: ["createdBy"] });
+      return row?.createdBy ?? null;
+    }
+    default:
+      return null;
+  }
 }
 
 async function findUserByEmailLoose(email) {
@@ -134,6 +184,31 @@ router.post("/", async (req, res) => {
     }
     const comment = await Comment.create(payload);
     const [out] = await withResolvedAuthorNames([comment]);
+
+    const ownerId = await getPostOwnerUserId(payload.targetType, payload.targetId);
+    if (ownerId) {
+      const commenter = await findUserByEmailLoose(payload.author);
+      if (!commenter || commenter.id !== ownerId) {
+        const commenterLabel =
+          (payload.authorName || displayNameFromUserRow(commenter) || "Someone")
+            .toString()
+            .trim() || "Someone";
+        const preview = payload.content.slice(0, 100);
+        sendPushToUser(ownerId, {
+          title: "New comment on your post",
+          body: `${commenterLabel}: ${preview}`,
+          data: {
+            type: "comment",
+            targetType: payload.targetType,
+            targetId: String(payload.targetId),
+            path: commentDeepLinkPath(payload.targetType, payload.targetId),
+          },
+        }).catch((err) =>
+          console.error("[push] comment notify:", err.message || err)
+        );
+      }
+    }
+
     return res.status(201).json(out);
   } catch (err) {
     console.error("COMMENT CREATE ERROR:", err?.message ?? err);

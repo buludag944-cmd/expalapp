@@ -21,6 +21,28 @@ const User = sequelize.define("User", {
   industry: { type: DataTypes.STRING },
   bio: { type: DataTypes.TEXT },
   profileImage: { type: DataTypes.TEXT }, // base64 or URL
+  // Expat journey fields
+  profession: { type: DataTypes.STRING },
+  professionCategory: { type: DataTypes.STRING },
+  homeCountry: { type: DataTypes.STRING },
+  destinationCountry: { type: DataTypes.STRING },
+  destinationCity: { type: DataTypes.STRING },
+  moveDate: { type: DataTypes.DATEONLY },
+  arrivalDate: { type: DataTypes.DATEONLY },
+  visaType: { type: DataTypes.STRING },
+  employerName: { type: DataTypes.STRING },
+  familyStatus: { type: DataTypes.STRING },
+  phase: { type: DataTypes.STRING, defaultValue: "relocation" },
+  onboardingComplete: { type: DataTypes.BOOLEAN, defaultValue: false },
+  concerns: { type: DataTypes.JSON },
+  isMentor: { type: DataTypes.BOOLEAN, defaultValue: false },
+  mentorVerified: { type: DataTypes.BOOLEAN, defaultValue: false },
+  availabilityForMentorCalls: { type: DataTypes.BOOLEAN, defaultValue: false },
+  languages: { type: DataTypes.JSON },
+  previousCountries: { type: DataTypes.JSON },
+  profilePublic: { type: DataTypes.BOOLEAN, defaultValue: true },
+  lifeAbroadScore: { type: DataTypes.INTEGER, defaultValue: 0 },
+  languageMilestone: { type: DataTypes.INTEGER, defaultValue: 0 },
 });
 
 module.exports = User;
