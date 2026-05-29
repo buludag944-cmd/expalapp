@@ -463,7 +463,10 @@ function buildGoogleAuthHandler() {
   return async function googleAuthHandler(req, res) {
     try {
       if (!firebaseConfigured()) {
-        return res.status(503).json({ error: "Google sign-in is not configured on the server." });
+        return res.status(503).json({
+          error:
+            "Google sign-in is not configured on the server. On Render, set FIREBASE_SERVICE_ACCOUNT_JSON to the full Firebase service account JSON, then redeploy.",
+        });
       }
 
       const idToken = (req.body.idToken ?? "").toString().trim();

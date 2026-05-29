@@ -39,6 +39,7 @@ const adminRouter = require("./routes/admin");
 const pushRouter = require("./routes/push");
 const { sendPushToUser } = require("./services/push");
 const { initEmailTransport } = require("./services/email");
+const { isConfigured: firebaseEnvSet, getAdmin: initFirebaseAdmin } = require("./services/firebaseAdmin");
 const { verifyToken } = require("./middleware/auth");
 const { JWT_SECRET } = require("./config/jwt");
 const { Op, fn, col, where } = require("sequelize");
@@ -591,6 +592,19 @@ sequelize
     } catch (err) {
       console.error("[boot] email init failed:", err.message || err);
       throw err;
+    }
+    if (firebaseEnvSet()) {
+      const firebaseReady = initFirebaseAdmin();
+      console.log(
+        "[firebase]",
+        firebaseReady
+          ? "FIREBASE_SERVICE_ACCOUNT_JSON set — Google sign-in enabled"
+          : "FIREBASE_SERVICE_ACCOUNT_JSON set but invalid — check logs above"
+      );
+    } else {
+      console.warn(
+        "[firebase] FIREBASE_SERVICE_ACCOUNT_JSON missing — Google sign-in returns 503"
+      );
     }
     console.log(`[boot] about to listen on http://localhost:${port}`);
     const server = app.listen(port, () => {
