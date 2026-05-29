@@ -1,43 +1,33 @@
-const { QueryTypes } = require("sequelize");
+const { addColumnIfMissing, DataTypes } = require("./migrateUtil");
 
-const COLUMNS = [
-  ["profession", "TEXT"],
-  ["professionCategory", "TEXT"],
-  ["homeCountry", "TEXT"],
-  ["destinationCountry", "TEXT"],
-  ["destinationCity", "TEXT"],
-  ["moveDate", "DATE"],
-  ["arrivalDate", "DATE"],
-  ["visaType", "TEXT"],
-  ["employerName", "TEXT"],
-  ["familyStatus", "TEXT"],
-  ["phase", "TEXT DEFAULT 'relocation'"],
-  ["onboardingComplete", "TINYINT(1) DEFAULT 0"],
-  ["concerns", "TEXT"],
-  ["isMentor", "TINYINT(1) DEFAULT 0"],
-  ["mentorVerified", "TINYINT(1) DEFAULT 0"],
-  ["availabilityForMentorCalls", "TINYINT(1) DEFAULT 0"],
-  ["languages", "TEXT"],
-  ["previousCountries", "TEXT"],
-  ["profilePublic", "TINYINT(1) DEFAULT 1"],
-  ["lifeAbroadScore", "INTEGER DEFAULT 0"],
-  ["languageMilestone", "INTEGER DEFAULT 0"],
+const USER_COLUMNS = [
+  ["profession", { type: DataTypes.STRING, allowNull: true }],
+  ["professionCategory", { type: DataTypes.STRING, allowNull: true }],
+  ["homeCountry", { type: DataTypes.STRING, allowNull: true }],
+  ["destinationCountry", { type: DataTypes.STRING, allowNull: true }],
+  ["destinationCity", { type: DataTypes.STRING, allowNull: true }],
+  ["moveDate", { type: DataTypes.DATEONLY, allowNull: true }],
+  ["arrivalDate", { type: DataTypes.DATEONLY, allowNull: true }],
+  ["visaType", { type: DataTypes.STRING, allowNull: true }],
+  ["employerName", { type: DataTypes.STRING, allowNull: true }],
+  ["familyStatus", { type: DataTypes.STRING, allowNull: true }],
+  ["phase", { type: DataTypes.STRING, allowNull: true, defaultValue: "relocation" }],
+  ["onboardingComplete", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }],
+  ["concerns", { type: DataTypes.JSON, allowNull: true }],
+  ["isMentor", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }],
+  ["mentorVerified", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }],
+  ["availabilityForMentorCalls", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }],
+  ["languages", { type: DataTypes.JSON, allowNull: true }],
+  ["previousCountries", { type: DataTypes.JSON, allowNull: true }],
+  ["profilePublic", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }],
+  ["lifeAbroadScore", { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 }],
+  ["languageMilestone", { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 }],
 ];
 
-async function columnExists(sequelize, table, name) {
-  const rows = await sequelize.query(`PRAGMA table_info(${table});`, {
-    type: QueryTypes.SELECT,
-  });
-  return rows.some((r) => r.name === name);
-}
-
-/** Safe to run on every boot (Render has no Shell). Adds missing Users columns only. */
+/** Safe on every boot. Adds missing Users columns only (SQLite + Postgres). */
 async function migrateExpatFields(sequelize) {
-  for (const [name, type] of COLUMNS) {
-    if (!(await columnExists(sequelize, "Users", name))) {
-      await sequelize.query(`ALTER TABLE Users ADD COLUMN ${name} ${type};`);
-      console.log(`[migrate] Added Users.${name}`);
-    }
+  for (const [name, definition] of USER_COLUMNS) {
+    await addColumnIfMissing(sequelize, "Users", name, definition);
   }
 }
 

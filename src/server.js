@@ -40,6 +40,8 @@ const adminRouter = require("./routes/admin");
 const pushRouter = require("./routes/push");
 const { sendPushToUser } = require("./services/push");
 const { initEmailTransport, getEmailStatus } = require("./services/email");
+const { isOpenAiConfigured } = require("./lib/expalAssistant");
+const dbMeta = require("./config/database").dbMeta;
 const { isConfigured: firebaseEnvSet, getAdmin: initFirebaseAdmin } = require("./services/firebaseAdmin");
 const { verifyToken } = require("./middleware/auth");
 const { JWT_SECRET } = require("./config/jwt");
@@ -62,7 +64,12 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => {
-  res.status(200).json({ ok: true, email: getEmailStatus() });
+  res.status(200).json({
+    ok: true,
+    email: getEmailStatus(),
+    database: dbMeta,
+    assistant: { openai: isOpenAiConfigured() },
+  });
 });
 
 // Must run before any router that reads req.body (events, auth, housing, etc.)
@@ -567,6 +574,22 @@ if (fs.existsSync(path.join(frontendBuild, "index.html"))) {
 // New columns (e.g. verifyTokenExpiresAt): local dev can run `npm run reset-db` once to recreate schema from models.
 // Full reset: node scripts/reset-db.js OR DB_FORCE_RESET=1 once then unset (wipes tables without deleting the file — still avoids ALTER).
 const DB_FORCE_RESET = process.env.DB_FORCE_RESET === "1";
+
+if (process.env.RENDER === "true") {
+  if (process.env.DB_FORCE_RESET === "1") {
+    console.error(
+      "[db] DB_FORCE_RESET=1 wipes ALL users on every boot — remove this from Render Environment."
+    );
+  }
+  if (dbMeta && !dbMeta.persistent) {
+    console.warn(
+      "[db] ⚠️ SQLite on Render ephemeral disk — accounts disappear after each deploy. " +
+        "Connect Render Postgres to this service (DATABASE_URL). See RENDER_DATABASE_SETUP.md"
+    );
+  } else if (dbMeta) {
+    console.log(`[db] ${dbMeta.dialect} (${dbMeta.storage}) — survives redeploys`);
+  }
+}
 
 sequelize
   .sync(DB_FORCE_RESET ? { force: true } : {})

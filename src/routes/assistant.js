@@ -12,6 +12,7 @@ router.post("/chat", async (req, res) => {
     if (!message) {
       return res.status(400).json({ error: "message is required" });
     }
+    const history = Array.isArray(req.body.history) ? req.body.history : [];
     const user = await User.findByPk(req.user.id, {
       attributes: [
         "id",
@@ -23,7 +24,7 @@ router.post("/chat", async (req, res) => {
         "profession",
       ],
     });
-    const { reply, source } = await getAssistantReply(message, user);
+    const { reply, source } = await getAssistantReply(message, user, history);
     res.json({ reply, source });
   } catch (err) {
     console.error("[assistant] chat error:", err.message || err);

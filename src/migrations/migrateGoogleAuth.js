@@ -1,23 +1,14 @@
-const { QueryTypes } = require("sequelize");
+const { addColumnIfMissing, DataTypes } = require("./migrateUtil");
 
-const COLUMNS = [
-  ["authProvider", "TEXT DEFAULT 'email'"],
-  ["firebaseUid", "TEXT"],
+const USER_COLUMNS = [
+  ["authProvider", { type: DataTypes.STRING, allowNull: false, defaultValue: "email" }],
+  // No UNIQUE on ALTER (SQLite cannot add UNIQUE columns); fresh DBs get unique from User model.
+  ["firebaseUid", { type: DataTypes.STRING, allowNull: true }],
 ];
 
-async function columnExists(sequelize, table, name) {
-  const rows = await sequelize.query(`PRAGMA table_info(${table});`, {
-    type: QueryTypes.SELECT,
-  });
-  return rows.some((r) => r.name === name);
-}
-
 async function migrateGoogleAuth(sequelize) {
-  for (const [name, type] of COLUMNS) {
-    if (!(await columnExists(sequelize, "Users", name))) {
-      await sequelize.query(`ALTER TABLE Users ADD COLUMN ${name} ${type};`);
-      console.log(`[migrate] Added Users.${name}`);
-    }
+  for (const [name, definition] of USER_COLUMNS) {
+    await addColumnIfMissing(sequelize, "Users", name, definition);
   }
 }
 

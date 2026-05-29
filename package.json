@@ -15,7 +15,9 @@
     "migrate:expat-fields": "node scripts/migrate-expat-fields.js",
     "verify:smtp-resend": "node scripts/verify-smtp-resend.js",
     "test:e2e-email": "node scripts/e2e-email-verify-flow.js",
-    "test:full-stack": "bash scripts/full-stack-verify-flow.sh"
+    "test:full-stack": "bash scripts/full-stack-verify-flow.sh",
+    "render:env": "node scripts/build-render-env.js",
+    "render:firebase-import": "node scripts/build-render-firebase-import.js"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +29,7 @@
     "firebase-admin": "^13.0.2",
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^6.10.1",
+    "pg": "^8.21.0",
     "sequelize": "^6.37.8",
     "sqlite3": "^6.0.1"
   },
