@@ -31,6 +31,7 @@ const {
 const journeyRouter = require("./routes/journey");
 const { seedForumSpacesIfEmpty } = require("./services/seedForums");
 const { migrateExpatFields } = require("./migrations/migrateExpatFields");
+const { migrateGoogleAuth } = require("./migrations/migrateGoogleAuth");
 const eventsRouter = require("./routes/events"); // GET/POST /api/events
 const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
@@ -572,6 +573,12 @@ sequelize
       await migrateExpatFields(sequelize);
     } catch (err) {
       console.error("[migrate] expat fields:", err.message || err);
+      throw err;
+    }
+    try {
+      await migrateGoogleAuth(sequelize);
+    } catch (err) {
+      console.error("[migrate] google auth:", err.message || err);
       throw err;
     }
     try {

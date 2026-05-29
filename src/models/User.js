@@ -7,6 +7,8 @@ const User = sequelize.define("User", {
   lastName: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
   password: { type: DataTypes.STRING, allowNull: false },
+  authProvider: { type: DataTypes.STRING, allowNull: false, defaultValue: "email" },
+  firebaseUid: { type: DataTypes.STRING, allowNull: true, unique: true },
   isVerified: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   isAdmin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   verifyToken: { type: DataTypes.STRING(128), allowNull: true },

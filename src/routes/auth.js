@@ -15,6 +15,7 @@ const {
   sendResetEmail,
   emailDeliveryConfigured,
 } = require("../services/email");
+const { isConfigured: firebaseConfigured, verifyIdToken } = require("../services/firebaseAdmin");
 
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 /** Password reset link TTL — configurable; default 60 minutes. */
@@ -193,6 +194,10 @@ function buildLoginHandler() {
       });
       if (!user) {
         return res.status(401).json({ error: "Invalid email or password." });
+      }
+
+      if (user.authProvider === "google") {
+        return res.status(401).json({ error: "This account uses Google sign-in. Tap Continue with Google." });
       }
 
       const ok = await bcrypt.compare(password, user.password);
@@ -447,20 +452,96 @@ function buildResetPasswordHandler() {
 
 const registerHandler = buildRegisterHandler();
 const loginHandler = buildLoginHandler();
+function splitDisplayName(name) {
+  const parts = (name || "").toString().trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { firstName: "Expal", lastName: "Member" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "Member" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function buildGoogleAuthHandler() {
+  return async function googleAuthHandler(req, res) {
+    try {
+      if (!firebaseConfigured()) {
+        return res.status(503).json({ error: "Google sign-in is not configured on the server." });
+      }
+
+      const idToken = (req.body.idToken ?? "").toString().trim();
+      if (!idToken) {
+        return res.status(400).json({ error: "Missing Google sign-in token." });
+      }
+
+      const decoded = await verifyIdToken(idToken);
+      const signInProvider = decoded.firebase?.sign_in_provider;
+      if (signInProvider && signInProvider !== "google.com") {
+        return res.status(403).json({ error: "Only Google sign-in is supported." });
+      }
+
+      const firebaseUid = decoded.uid;
+      const email = (decoded.email ?? "").toString().trim().toLowerCase();
+      if (!email) {
+        return res.status(400).json({ error: "Google account has no email. Use another account." });
+      }
+
+      const { firstName, lastName } = splitDisplayName(decoded.name);
+      const profileImage = decoded.picture || null;
+
+      let user =
+        (firebaseUid && (await User.findOne({ where: { firebaseUid } }))) ||
+        (await User.findOne({ where: where(fn("lower", col("email")), email) }));
+
+      if (user) {
+        user.firebaseUid = firebaseUid;
+        user.authProvider = "google";
+        user.isVerified = true;
+        user.verifyToken = null;
+        user.verifyTokenExpiresAt = null;
+        if (profileImage && !user.profileImage) user.profileImage = profileImage;
+        if (!user.firstName || user.firstName === "Expal") user.firstName = firstName;
+        if (!user.lastName || user.lastName === "Member") user.lastName = lastName;
+        await user.save();
+      } else {
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
+        user = await User.create({
+          firstName,
+          lastName,
+          email,
+          password: hashedPassword,
+          authProvider: "google",
+          firebaseUid,
+          isVerified: true,
+          profileImage,
+        });
+      }
+
+      return res.json(issueAuthTokenPayload(user));
+    } catch (err) {
+      console.error("[auth/google]", err.message || err);
+      if (err.code === "FIREBASE_NOT_CONFIGURED") {
+        return res.status(503).json({ error: "Google sign-in is not configured on the server." });
+      }
+      return res.status(401).json({ error: "Google sign-in failed. Try again." });
+    }
+  };
+}
+
 const verifyHandler = buildVerifyHandler();
 const resendVerificationHandler = buildResendVerificationHandler();
 const forgotPasswordHandler = buildForgotPasswordHandler();
 const resetPasswordHandler = buildResetPasswordHandler();
+const googleAuthHandler = buildGoogleAuthHandler();
 
 const authRouter = express.Router();
 authRouter.get("/verify/:token", verifyHandler);
 authRouter.post("/resend-verification", resendVerificationHandler);
 authRouter.post("/forgot-password", forgotPasswordHandler);
 authRouter.post("/reset-password", resetPasswordHandler);
+authRouter.post("/google", googleAuthHandler);
 
 module.exports = {
   registerHandler,
   loginHandler,
+  googleAuthHandler,
   verifyHandler,
   resendVerificationHandler,
   forgotPasswordHandler,
