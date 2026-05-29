@@ -187,6 +187,28 @@ async function sendGoogleSignInReminderEmail({ to, loginUrl }) {
   console.log("[forgot] Google sign-in reminder sent to", to);
 }
 
+/** Safe status for /health (no secrets). */
+function getEmailStatus() {
+  const resend = resendApiKeyConfigured();
+  const smtp = smtpHostConfigured();
+  let hint =
+    "Add RESEND_API_KEY on Render (see backend/EMAIL_RENDER.md). SMTP is blocked on Render free tier.";
+  if (resend) {
+    hint =
+      "Resend active. Free tier: onboarding@resend.dev only delivers to your Resend account email until you verify a domain.";
+  } else if (smtp) {
+    hint =
+      "SMTP vars set but Resend not configured — outbound SMTP usually fails on Render; add RESEND_API_KEY.";
+  }
+  return {
+    configured: emailDeliveryConfigured(),
+    resend,
+    smtp,
+    mailFromSet: !!(process.env.MAIL_FROM || "").trim(),
+    hint,
+  };
+}
+
 module.exports = {
   sendVerificationEmail,
   sendResetEmail,
@@ -195,4 +217,5 @@ module.exports = {
   smtpHostConfigured,
   emailDeliveryConfigured,
   resendApiKeyConfigured,
+  getEmailStatus,
 };

@@ -38,7 +38,7 @@ const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
 const adminRouter = require("./routes/admin");
 const pushRouter = require("./routes/push");
 const { sendPushToUser } = require("./services/push");
-const { initEmailTransport } = require("./services/email");
+const { initEmailTransport, getEmailStatus } = require("./services/email");
 const { isConfigured: firebaseEnvSet, getAdmin: initFirebaseAdmin } = require("./services/firebaseAdmin");
 const { verifyToken } = require("./middleware/auth");
 const { JWT_SECRET } = require("./config/jwt");
@@ -61,7 +61,7 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => {
-  res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true, email: getEmailStatus() });
 });
 
 // Must run before any router that reads req.body (events, auth, housing, etc.)
