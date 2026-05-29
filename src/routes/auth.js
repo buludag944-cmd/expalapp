@@ -393,7 +393,13 @@ function buildForgotPasswordHandler() {
         console.warn("[forgot] No RESEND_API_KEY or SMTP — no email sent");
       }
 
-      console.log(`[forgot] email=${email} issued=${issued}`);
+      let reason = "sent";
+      if (!issued) {
+        if (!user) reason = "noAccount";
+        else if (!emailDeliveryConfigured()) reason = "emailNotConfigured";
+        else reason = "sendFailed";
+      }
+      console.log(`[forgot] email=${email} issued=${issued} reason=${reason}`);
       return res.status(200).json({ message: FORGOT_SUCCESS_MESSAGE });
     } catch (err) {
       console.error("FORGOT PASSWORD ERROR:", err);
