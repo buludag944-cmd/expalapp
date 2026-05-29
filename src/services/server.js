@@ -29,7 +29,6 @@ const {
   Comment,
 } = require("./bootstrapModels");
 const journeyRouter = require("./routes/journey");
-const assistantRouter = require("./routes/assistant");
 const { seedForumSpacesIfEmpty } = require("./services/seedForums");
 const { migrateExpatFields } = require("./migrations/migrateExpatFields");
 const { migrateGoogleAuth } = require("./migrations/migrateGoogleAuth");
@@ -74,7 +73,6 @@ app.use("/api/events", eventsRouter);
 app.use("/api/comments", commentRoutes);
 app.use("/api/push", pushRouter);
 app.use("/api/journey", journeyRouter);
-app.use("/api/assistant", assistantRouter);
 
 app.get("/api/users", async (_req, res) => {
   try {

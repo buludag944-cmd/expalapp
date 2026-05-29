@@ -377,6 +377,87 @@ router.post("/forums/threads/:id/replies", async (req, res) => {
   }
 });
 
+function canModifyForumAuthor(user, authorId) {
+  return authorId === user.id || !!user.isAdmin;
+}
+
+router.patch("/forums/threads/:id", async (req, res) => {
+  try {
+    const thread = await ForumThread.findByPk(req.params.id);
+    if (!thread) return res.status(404).json({ error: "Thread not found" });
+    const user = await User.findByPk(req.user.id);
+    if (!canModifyForumAuthor(user, thread.authorId)) {
+      return res.status(403).json({ error: "You can only edit your own threads." });
+    }
+    const title = req.body.title != null ? String(req.body.title).trim() : thread.title;
+    const body = req.body.body != null ? String(req.body.body).trim() : thread.body;
+    if (!title || !body) {
+      return res.status(400).json({ error: "title and body are required" });
+    }
+    await thread.update({ title, body, lastActivityAt: new Date() });
+    res.json(thread);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/forums/threads/:id", async (req, res) => {
+  try {
+    const thread = await ForumThread.findByPk(req.params.id);
+    if (!thread) return res.status(404).json({ error: "Thread not found" });
+    const user = await User.findByPk(req.user.id);
+    if (!canModifyForumAuthor(user, thread.authorId)) {
+      return res.status(403).json({ error: "You can only delete your own threads." });
+    }
+    await ForumReply.destroy({ where: { threadId: thread.id } });
+    await thread.destroy();
+    res.status(204).send();
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.patch("/forums/replies/:replyId", async (req, res) => {
+  try {
+    const reply = await ForumReply.findByPk(req.params.replyId);
+    if (!reply) return res.status(404).json({ error: "Reply not found" });
+    const user = await User.findByPk(req.user.id);
+    if (!canModifyForumAuthor(user, reply.authorId)) {
+      return res.status(403).json({ error: "You can only edit your own replies." });
+    }
+    const body = (req.body.body || "").trim();
+    if (!body) return res.status(400).json({ error: "body required" });
+    await reply.update({ body });
+    const thread = await ForumThread.findByPk(reply.threadId);
+    if (thread) await thread.update({ lastActivityAt: new Date() });
+    res.json(reply);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/forums/replies/:replyId", async (req, res) => {
+  try {
+    const reply = await ForumReply.findByPk(req.params.replyId);
+    if (!reply) return res.status(404).json({ error: "Reply not found" });
+    const user = await User.findByPk(req.user.id);
+    if (!canModifyForumAuthor(user, reply.authorId)) {
+      return res.status(403).json({ error: "You can only delete your own replies." });
+    }
+    const thread = await ForumThread.findByPk(reply.threadId);
+    await reply.destroy();
+    if (thread) {
+      await thread.update({
+        replyCount: Math.max(0, (thread.replyCount || 1) - 1),
+        lastActivityAt: new Date(),
+      });
+    }
+    res.status(204).send();
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Mentors
 router.get("/mentors/match", async (req, res) => {
   try {
