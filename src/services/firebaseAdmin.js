@@ -5,8 +5,16 @@
 let firebaseAdmin = null;
 let initAttempted = false;
 
+function readServiceAccountJson() {
+  const b64 = (process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 || "").trim();
+  if (b64) {
+    return Buffer.from(b64, "base64").toString("utf8");
+  }
+  return (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
+}
+
 function isConfigured() {
-  return !!(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
+  return !!readServiceAccountJson();
 }
 
 function getAdmin() {
@@ -18,7 +26,7 @@ function getAdmin() {
     try {
       const admin = require("firebase-admin");
       if (!admin.apps.length) {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON.trim());
+        const serviceAccount = JSON.parse(readServiceAccountJson());
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });
