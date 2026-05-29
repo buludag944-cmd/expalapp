@@ -173,9 +173,24 @@ async function sendResetEmail({ to, link }) {
   }
 }
 
+/** Account uses Google sign-in only — no password to reset. */
+async function sendGoogleSignInReminderEmail({ to, loginUrl }) {
+  const subject = "Sign in to Expal with Google";
+  const html = `
+    <p>Your Expal account uses <strong>Continue with Google</strong> — there is no separate password to reset.</p>
+    <p><a href="${loginUrl}">Open Expal and sign in with Google</a></p>
+    <p>If you did not request this, you can ignore this email.</p>
+  `;
+  const text = `Your Expal account uses Google sign-in — no password to reset.\n\nSign in: ${loginUrl}\n`;
+
+  await sendMailMessage({ to, subject, html, text });
+  console.log("[forgot] Google sign-in reminder sent to", to);
+}
+
 module.exports = {
   sendVerificationEmail,
   sendResetEmail,
+  sendGoogleSignInReminderEmail,
   initEmailTransport,
   smtpHostConfigured,
   emailDeliveryConfigured,

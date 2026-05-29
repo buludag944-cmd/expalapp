@@ -13,6 +13,7 @@ const { issueAuthTokenPayload, JWT_SECRET } = require("../config/jwt");
 const {
   sendVerificationEmail,
   sendResetEmail,
+  sendGoogleSignInReminderEmail,
   emailDeliveryConfigured,
 } = require("../services/email");
 const { isConfigured: firebaseConfigured, verifyIdToken } = require("../services/firebaseAdmin");
@@ -364,20 +365,27 @@ function buildForgotPasswordHandler() {
       });
 
       if (user && emailDeliveryConfigured()) {
-        const resetToken = crypto.randomBytes(32).toString("hex");
-        user.resetToken = resetToken;
-        user.resetTokenExpiresAt = resetTokenExpiryDate();
-        await user.save();
-
         const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
           /\/$/,
           ""
         );
-        const link = `${clientUrl}/reset/${encodeURIComponent(resetToken)}`;
 
         try {
-          await sendResetEmail({ to: email, link });
-          issued = true;
+          if (user.authProvider === "google") {
+            await sendGoogleSignInReminderEmail({
+              to: email,
+              loginUrl: `${clientUrl}/`,
+            });
+            issued = true;
+          } else {
+            const resetToken = crypto.randomBytes(32).toString("hex");
+            user.resetToken = resetToken;
+            user.resetTokenExpiresAt = resetTokenExpiryDate();
+            await user.save();
+            const link = `${clientUrl}/reset/${encodeURIComponent(resetToken)}`;
+            await sendResetEmail({ to: email, link });
+            issued = true;
+          }
         } catch (mailErr) {
           console.error("[forgot] reset email failed:", mailErr?.message ?? mailErr);
         }
