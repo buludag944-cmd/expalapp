@@ -517,6 +517,8 @@ function buildGoogleAuthHandler() {
         if (!user.firstName || user.firstName === "Expal") user.firstName = firstName;
         if (!user.lastName || user.lastName === "Member") user.lastName = lastName;
         await user.save();
+        await user.reload();
+        console.log(`[auth/google] existing user id=${user.id} email=${email} onboarding=${!!user.onboardingComplete}`);
       } else {
         const hashedPassword = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
         user = await User.create({
@@ -529,6 +531,7 @@ function buildGoogleAuthHandler() {
           isVerified: true,
           profileImage,
         });
+        console.log(`[auth/google] new user id=${user.id} email=${email}`);
       }
 
       return res.json(issueAuthTokenPayload(user));

@@ -38,6 +38,7 @@ const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
 const adminRouter = require("./routes/admin");
 const pushRouter = require("./routes/push");
+const { serializeUserProfile } = require("./lib/userProfile");
 const { sendPushToUser } = require("./services/push");
 const { initEmailTransport, getEmailStatus } = require("./services/email");
 const { isOpenAiConfigured } = require("./lib/expalAssistant");
@@ -255,35 +256,7 @@ app.get("/api/profile", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
-    res.json({
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      isAdmin: !!user.isAdmin,
-      nationality: user.nationality,
-      currentCity: user.currentCity,
-      company: user.company,
-      interests: user.interests,
-      industry: user.industry,
-      bio: user.bio,
-      profileImage: user.profileImage,
-      profession: user.profession,
-      professionCategory: user.professionCategory,
-      homeCountry: user.homeCountry,
-      destinationCountry: user.destinationCountry,
-      destinationCity: user.destinationCity,
-      moveDate: user.moveDate,
-      arrivalDate: user.arrivalDate,
-      visaType: user.visaType,
-      employerName: user.employerName,
-      familyStatus: user.familyStatus,
-      phase: user.phase,
-      onboardingComplete: !!user.onboardingComplete,
-      concerns: user.concerns,
-      isMentor: !!user.isMentor,
-      lifeAbroadScore: user.lifeAbroadScore || 0,
-    });
+    res.json(serializeUserProfile(user));
   } catch (err) {
     res.status(401).json({ error: "Invalid email or password." });
   }
@@ -352,28 +325,7 @@ app.put("/api/profile", verifyToken, async (req, res) => {
       if (body[key] !== undefined) patch[key] = body[key];
     }
     const updated = await user.update(patch);
-    res.json({
-      id: updated.id,
-      firstName: updated.firstName,
-      lastName: updated.lastName,
-      email: updated.email,
-      isAdmin: !!updated.isAdmin,
-      nationality: updated.nationality,
-      currentCity: updated.currentCity,
-      interests: updated.interests,
-      industry: updated.industry,
-      bio: updated.bio,
-      profileImage: updated.profileImage,
-      company: updated.company,
-      profession: updated.profession,
-      professionCategory: updated.professionCategory,
-      employerName: updated.employerName,
-      destinationCountry: updated.destinationCountry,
-      destinationCity: updated.destinationCity,
-      phase: updated.phase,
-      onboardingComplete: !!updated.onboardingComplete,
-      lifeAbroadScore: updated.lifeAbroadScore || 0,
-    });
+    res.json(serializeUserProfile(updated));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
