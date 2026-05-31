@@ -1,6 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const { detectPhase } = require("./phaseDetector");
+const { getVisaTimelineTasks, normalizeVisaType } = require("./visaGuide");
 
 const templatesPath = path.join(__dirname, "../../data/timelineTasks.json");
 
@@ -22,8 +23,19 @@ function generateTasks(user) {
   const templates = getTemplateTasks();
   const moveDate = user.moveDate ? new Date(user.moveDate) : new Date();
   const phase = detectPhase(user.arrivalDate);
+  const visaType = normalizeVisaType(user.visaType);
+  const country = user.destinationCountry || "";
 
-  return templates
+  const visaSpecific = getVisaTimelineTasks(country, visaType).map((t) => ({
+    title: t.title,
+    description: t.description,
+    category: t.category,
+    dueOffsetDays: t.due_offset_days,
+    phase: t.phase,
+    dueDate: addDays(moveDate, t.due_offset_days),
+  }));
+
+  const base = templates
     .filter((t) => {
       const order = ["relocation", "integration", "establishment", "longterm"];
       return order.indexOf(t.phase) <= order.indexOf(phase);
@@ -36,6 +48,14 @@ function generateTasks(user) {
       phase: t.phase,
       dueDate: addDays(moveDate, t.due_offset_days),
     }));
+
+  const seen = new Set();
+  return [...visaSpecific, ...base].filter((t) => {
+    const key = t.title.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function addDays(date, days) {

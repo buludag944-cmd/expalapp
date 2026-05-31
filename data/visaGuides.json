@@ -1,0 +1,78 @@
+{
+  "Ireland": {
+    "CSEP (Critical Skills Employment Permit)": {
+      "shortLabel": "CSEP",
+      "tagline": "Fast-track employment permit for in-demand roles (€38k+ salary threshold applies).",
+      "officialUrl": "https://enterprise.gov.ie/en/what-we-do/workplace-and-skills/employment-permits/",
+      "steps": [
+        { "title": "Confirm your role is on the Critical Skills list", "description": "Check that your job title and employer qualify. CSEP is for occupations on Ireland's Critical Skills Occupations List with minimum salary thresholds.", "phase": "pre-arrival" },
+        { "title": "Employer applies for CSEP", "description": "Your employer submits the Critical Skills Employment Permit application to DETE (Department of Enterprise, Trade and Employment) before you travel.", "phase": "pre-arrival" },
+        { "title": "Gather passport, contract & qualifications", "description": "Prepare certified copies of degree/professional certs, signed contract, and passport valid 6+ months.", "phase": "pre-arrival" },
+        { "title": "Apply for Irish entry visa (if required)", "description": "Non-visa-required nationals can travel once permit is approved. Others apply for D visa at Irish embassy/consulate.", "phase": "pre-arrival" },
+        { "title": "Register with immigration (IRP / GNIB)", "description": "Within 90 days of arrival, book registration for Irish Residence Permit (Stamp 1 or as directed). Bring permit letter, passport, proof of address.", "phase": "first-month" },
+        { "title": "Apply for PPS number", "description": "Required for employment and tax. Book at your local Intreo/office with proof of address and employment.", "phase": "first-month" },
+        { "title": "Open Irish bank account", "description": "Bring IRP card, PPS letter, employment contract, and proof of address.", "phase": "first-month" },
+        { "title": "Understand Stamp 4 pathway", "description": "After 21 months on CSEP (with same employer conditions), you may be eligible to apply for Stamp 4 — verify current rules on irishimmigration.ie.", "phase": "first-year" },
+        { "title": "Track permit renewal dates", "description": "CSEP is tied to employment. If you change jobs, a new permit may be required before starting new role.", "phase": "ongoing" }
+      ],
+      "tips": [
+        "Salary must meet the minimum for your occupation category — confirm current thresholds on enterprise.gov.ie.",
+        "Keep digital copies of all immigration correspondence.",
+        "Join Expal Community forums for CSEP holders in your city."
+      ]
+    },
+    "General Work Permit": {
+      "shortLabel": "General Work Permit",
+      "tagline": "Standard employment permit when your role is not on the Critical Skills list.",
+      "officialUrl": "https://enterprise.gov.ie/en/what-we-do/workplace-and-skills/employment-permits/",
+      "steps": [
+        { "title": "Labour Market Needs Test (LMNT)", "description": "Employer must usually show the role was advertised to EU/EEA candidates first. Confirm your employer completed LMNT unless exempt.", "phase": "pre-arrival" },
+        { "title": "Employer submits General Employment Permit", "description": "Application goes to DETE. Processing times vary — plan several months before intended start date.", "phase": "pre-arrival" },
+        { "title": "Check salary & contract minimums", "description": "General permits have minimum salary requirements (typically €30,000+ depending on role). Contract must meet permit conditions.", "phase": "pre-arrival" },
+        { "title": "Entry visa (if applicable)", "description": "Once permit approved, apply for entry visa at Irish embassy if your nationality requires one.", "phase": "pre-arrival" },
+        { "title": "Register for IRP after arrival", "description": "Book immigration registration within 90 days. Bring permit approval, passport, employer letter, proof of address.", "phase": "first-month" },
+        { "title": "PPS number & tax registration", "description": "Apply for PPS to start employment legally. Employer registers you for PAYE.", "phase": "first-month" },
+        { "title": "Bank account & payroll setup", "description": "Irish bank account needed for salary. Some banks accept appointment letter before IRP arrives.", "phase": "first-month" },
+        { "title": "Plan permit renewal early", "description": "General permits are usually issued for up to 2 years. Start renewal 3–6 months before expiry.", "phase": "ongoing" },
+        { "title": "Explore long-term residency options", "description": "After 5 years on valid permits you may qualify for long-term residency — track all stamps and absences.", "phase": "first-year" }
+      ],
+      "tips": [
+        "Changing employer usually requires a new permit application.",
+        "Keep payslips and tax documents from day one.",
+        "Use Journey → Timeline for admin deadlines."
+      ]
+    },
+    "EU Passport / EU Citizen": {
+      "shortLabel": "EU Passport",
+      "tagline": "EU/EEA/Swiss citizens can live and work in Ireland without an employment permit.",
+      "officialUrl": "https://www.irishimmigration.ie/",
+      "steps": [
+        { "title": "Travel with valid EU/EEA/Swiss passport or national ID", "description": "No employment permit required. You have freedom of movement to live and work in Ireland.", "phase": "pre-arrival" },
+        { "title": "Find accommodation & move", "description": "You can arrive and start job hunting or begin employment immediately — no permit wait.", "phase": "pre-arrival" },
+        { "title": "Register residence if staying 3+ months", "description": "EU citizens staying over 3 months should register — requirements depend on circumstances (employment, study, etc.).", "phase": "first-month" },
+        { "title": "Apply for PPS number", "description": "Needed for employment and accessing services. Book appointment with required ID and proof of address.", "phase": "first-month" },
+        { "title": "Open bank account", "description": "Passport/national ID plus proof of address. Employment contract helps if employed.", "phase": "first-month" },
+        { "title": "Register for healthcare", "description": "EU citizens may use EHIC initially; apply for Irish medical card or private insurance depending on income.", "phase": "first-month" },
+        { "title": "Understand tax residency", "description": "Living in Ireland 183+ days/year usually makes you tax resident. Register with Revenue.", "phase": "first-month" },
+        { "title": "Optional: apply for Irish citizenship later", "description": "After 5 years legal residence you may apply for naturalisation — different rules than non-EU permits.", "phase": "ongoing" }
+      ],
+      "tips": [
+        "No employment permit means faster job changes — still need PPS and contract.",
+        "Brexit note: UK citizens now follow separate rules — not covered by EU freedom of movement.",
+        "Update your visa type in Profile if you switch status."
+      ]
+    }
+  },
+  "default": {
+    "Work Permit": {
+      "shortLabel": "Work Permit",
+      "tagline": "General work-authorisation pathway for your destination country.",
+      "steps": [
+        { "title": "Confirm permit type with employer", "description": "Ask HR which permit category applies to your role and nationality.", "phase": "pre-arrival" },
+        { "title": "Gather identity & employment documents", "description": "Passport, contract, qualifications, and any police clearance required.", "phase": "pre-arrival" },
+        { "title": "Register locally after arrival", "description": "Complete immigration and address registration within required deadlines.", "phase": "first-month" }
+      ],
+      "tips": ["Always verify rules on official government immigration sites."]
+    }
+  }
+}

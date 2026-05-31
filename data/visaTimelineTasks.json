@@ -1,0 +1,21 @@
+{
+  "Ireland": {
+    "CSEP (Critical Skills Employment Permit)": [
+      { "title": "Verify role is on Critical Skills list", "description": "Confirm occupation and salary meet CSEP criteria on enterprise.gov.ie.", "category": "legal", "due_offset_days": -90, "phase": "relocation" },
+      { "title": "Track CSEP application with employer", "description": "Follow up on DETE permit status before booking flights.", "category": "legal", "due_offset_days": -60, "phase": "relocation" },
+      { "title": "Book IRP / immigration registration", "description": "Schedule within 90 days of arrival — slots fill quickly in Dublin.", "category": "legal", "due_offset_days": 7, "phase": "relocation" },
+      { "title": "Review Stamp 4 eligibility timeline", "description": "Mark 21-month CSEP milestone for possible Stamp 4 application.", "category": "legal", "due_offset_days": 600, "phase": "establishment" }
+    ],
+    "General Work Permit": [
+      { "title": "Confirm Labour Market Needs Test completed", "description": "Employer must show role was advertised unless LMNT exempt.", "category": "legal", "due_offset_days": -120, "phase": "relocation" },
+      { "title": "Follow General Permit processing", "description": "Permits can take months — don't resign current job until approved.", "category": "legal", "due_offset_days": -45, "phase": "relocation" },
+      { "title": "Register IRP within 90 days", "description": "Bring permit approval letter, passport, address proof.", "category": "legal", "due_offset_days": 14, "phase": "relocation" },
+      { "title": "Start permit renewal paperwork", "description": "Begin renewal 3–6 months before General Permit expiry.", "category": "legal", "due_offset_days": 640, "phase": "establishment" }
+    ],
+    "EU Passport / EU Citizen": [
+      { "title": "Bring valid EU/EEA ID or passport", "description": "No employment permit needed — freedom of movement applies.", "category": "legal", "due_offset_days": -14, "phase": "relocation" },
+      { "title": "Register residence (if staying 3+ months)", "description": "Complete EU residence registration if required for your situation.", "category": "legal", "due_offset_days": 30, "phase": "relocation" },
+      { "title": "Apply for PPS number", "description": "Required for employment and most admin in Ireland.", "category": "legal", "due_offset_days": 7, "phase": "relocation" }
+    ]
+  }
+}

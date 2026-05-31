@@ -3,99 +3,90 @@
  */
 
 const APP_GUIDE = `
-You are Expal's friendly assistant for expats. Expal helps people living abroad with:
-- Home dashboard: phase, timeline tasks, mentor match, life abroad score
-- Journey: relocation timeline, residency tracking, visa info
-- Community: forum spaces and threads (create, edit, delete your own posts)
-- Explore: housing, events, referrals, essentials, local know-how
-- Messages: direct messages between members
-- Profile: update destination, profession, bio
+You are Expal's relocation assistant for expats in Ireland and Europe. You give practical, friendly answers — not just app navigation.
 
-Sign-in is Google only on the web and app. Be concise (2-4 short paragraphs max). Answer the user's actual question. If unsure, suggest which app section to open. Do not make up legal advice; suggest official sources for visa/immigration questions.
+You CAN help with:
+- Ireland visa pathways: CSEP (Critical Skills Employment Permit), General Work Permit, EU Passport / EU citizen rights
+- Step-by-step relocation admin (IRP registration, PPS number, bank account, tax)
+- How to use Expal features (Journey visa guide, timeline, Community forums, housing, events)
+- General expat life questions (housing search tips, settling in, career)
+
+Rules:
+- Be concise (2–5 short paragraphs). Use **bold** for section names.
+- For legal/immigration specifics, mention official sources (enterprise.gov.ie, irishimmigration.ie) and note rules change — you are not a lawyer.
+- If the user has a visa type in their profile, tailor advice to that pathway.
+- Answer the actual question; don't only tell them which app tab to open unless they ask for navigation.
 `.trim();
 
 const TOPICS = [
   {
+    re: /csep|critical skills|critical skills employment permit/,
+    reply: (u) =>
+      `**CSEP (Critical Skills Employment Permit)** is for roles on Ireland's Critical Skills list with qualifying salary. Your employer applies via DETE before you travel.
+
+Key steps: permit approval → travel → **IRP registration within 90 days** → **PPS number** → bank account. After ~21 months on CSEP you may qualify for **Stamp 4** (verify current rules).
+
+Open **Journey → Visa guide** in Expal for your personalised checklist${
+        u?.visaType?.includes("CSEP") ? " — your profile is set to CSEP." : ". Set visa type to CSEP in **Profile** if this applies to you."
+      } Official info: enterprise.gov.ie`,
+  },
+  {
+    re: /general work permit|general employment|lmnt|labour market needs test/,
+    reply: (u) =>
+      `**General Work Permit** applies when the role is not on the Critical Skills list. Employers usually need a **Labour Market Needs Test** (job advertised to EU candidates first). Processing can take months.
+
+After approval: entry visa (if needed) → arrival → **IRP registration** → PPS → employment. Renew **3–6 months before expiry**.
+
+See **Journey → Visa guide** for your step list${
+        u?.visaType?.includes("General") ? " (your profile: General Work Permit)." : "."
+      }`,
+  },
+  {
+    re: /eu passport|eu citizen|eea|freedom of movement|stamp 4 eu/,
+    reply: (u) =>
+      `**EU/EEA/Swiss citizens** can live and work in Ireland **without an employment permit**. Bring valid passport or national ID.
+
+Still needed: **PPS number**, Irish **bank account**, tax registration, and possibly **residence registration** if staying 3+ months.
+
+Expal **Journey → Visa guide** has the EU pathway checklist${
+        u?.visaType?.includes("EU") ? " — matches your profile." : ". Update **Profile → Visa type** if you're an EU citizen."
+      }`,
+  },
+  {
     re: /housing|rent|apartment|flat|landlord|lease|roommate/,
     reply: (u) =>
-      `Open **Explore** from the bottom nav, then **Housing**. You can browse listings and post your own. ${
-        u?.destinationCity ? `Filter or search for **${u.destinationCity}** when you can.` : "Add your city in **Profile** for better matches."
-      } Community forums also share landlord tips.`,
+      `Open **Explore → Housing** to browse and post listings. ${
+        u?.destinationCity ? `Search around **${u.destinationCity}**.` : "Add your city in Profile."
+      } Daft.ie and Facebook groups are common in Ireland — forums in **Community** share landlord tips.`,
   },
   {
-    re: /forum|thread|community|post a|new thread|reply|edit.*thread|delete.*thread/,
+    re: /forum|thread|community|post a|new thread/,
     reply: () =>
-      `Go to **Community** → choose a forum space → open a thread or tap **New thread**. On a thread page you can **edit or delete** your own posts and replies.`,
+      `**Community** → pick a forum space → **New thread** or open existing threads. You can edit/delete your own posts.`,
   },
   {
-    re: /event|meetup|calendar|gathering|community event/,
+    re: /visa guide|visa type|change visa|permit type/,
     reply: (u) =>
-      `Open **Explore** → **Events** to see upcoming meetups or add your own. You can **edit or delete** events you created. ${
-        u?.destinationCity ? `Great for meeting people in ${u.destinationCity}.` : ""
+      `Open **Journey → Visa guide** for a step-by-step checklist${
+        u?.visaType ? ` for **${u.visaType}**` : ""
+      }. To switch pathway (CSEP / General Work Permit / EU Passport), go to **Profile → Visa & relocation** and tap **Update visa type** — your timeline refreshes automatically.`,
+  },
+  {
+    re: /journey|timeline|task|checklist|irp|gnib|pps/,
+    reply: (u) =>
+      `**Journey** has your **Visa guide** (personalised steps) and **Timeline** (dated tasks). For IRP/GNIB registration and PPS, check the Visa guide tab first${
+        u?.destinationCountry === "Ireland" ? " — Ireland-specific steps included." : "."
       }`,
   },
   {
-    re: /referral|recommend|introduction|job lead|service provider/,
+    re: /login|sign|google|session/,
     reply: () =>
-      `Open **Explore** → **Referrals** to ask for or share trusted contacts and job leads. You can **edit or delete** referrals you posted.`,
+      `Sign in with **Continue with Google**. Profile data is stored on the server — use the same Google account each time.`,
   },
   {
-    re: /journey|timeline|task|checklist|relocation plan/,
-    reply: (u) =>
-      `Open **Journey** for your relocation timeline and task checklist. **Home** shows urgent tasks for your current phase${
-        u?.destinationCountry ? ` in ${u.destinationCountry}` : ""
-      }.`,
-  },
-  {
-    re: /visa|residency|pr\b|permanent resident|citizenship|absence|immigration/,
-    reply: (u) =>
-      `Open **Journey** for residency tracking and timeline tasks. For official visa rules, always check your destination's government site — I can't give legal advice. ${
-        u?.destinationCountry ? `Your profile shows **${u.destinationCountry}** as destination.` : "Set your destination in **Profile** first."
-      }`,
-  },
-  {
-    re: /mentor|match|buddy|connect with/,
+    re: /explore|where is|how do i find|navigate|menu/,
     reply: () =>
-      `Check **Home** for your mentor match card. You can also search members from the header **Search** icon or browse profiles.`,
-  },
-  {
-    re: /message|chat|dm|inbox|direct message/,
-    reply: () =>
-      `Tap **Messages** in the bottom nav (desktop sidebar) to read and send direct messages to other members.`,
-  },
-  {
-    re: /profile|setting|account|photo|bio|destination city|onboarding/,
-    reply: (u) =>
-      `Open **Profile** to update your photo, bio, profession, and destination${
-        u?.destinationCity ? ` (currently ${u.destinationCity})` : ""
-      }. Complete onboarding there if you skipped it.`,
-  },
-  {
-    re: /essential|checklist|expat essential/,
-    reply: () =>
-      `Open **Explore** → **Expat essentials** for curated relocation checklists and tips.`,
-  },
-  {
-    re: /know.?how|local tip|culture|custom/,
-    reply: () =>
-      `Open **Explore** → **Local know-how** for culture and practical tips from other expats.`,
-  },
-  {
-    re: /home|dashboard|phase|life abroad|score/,
-    reply: (u) =>
-      `**Home** shows your relocation phase, urgent tasks, mentor match, and life abroad score. ${
-        u?.phase ? `You're currently in the **${u.phase}** phase.` : ""
-      }`,
-  },
-  {
-    re: /login|sign|google|password|account deleted|logged out|session/,
-    reply: () =>
-      `Sign in with **Continue with Google** only — no email/password sign-up. If you were logged out after a server redeploy, your Google account is fine; sign in again. **Profile data** is stored on the server — if the API database was reset, you may need to re-complete onboarding.`,
-  },
-  {
-    re: /explore|where is|how do i find|navigate|menu|tab/,
-    reply: () =>
-      `Main areas: **Home** (dashboard), **Explore** (housing, events, referrals, essentials), **Community** (forums), **Journey** (timeline & visa tools), **Messages**, **Profile**. What are you trying to do?`,
+      `**Home** (dashboard) · **Journey** (visa guide + timeline) · **Explore** (housing, events) · **Community** (forums) · **Profile** (visa type, bio). What do you need help with?`,
   },
 ];
 
@@ -106,24 +97,20 @@ function pickTopic(message) {
 
 function contextualFallback(message, user) {
   const q = (message || "").toLowerCase().trim();
-  const city = user?.destinationCity || null;
-  const country = user?.destinationCountry || null;
-  const place =
-    city && country ? `${city}, ${country}` : city || country || null;
+  const visa = user?.visaType || null;
+  const place = user?.destinationCity
+    ? `${user.destinationCity}, ${user.destinationCountry || "Ireland"}`
+    : user?.destinationCountry || null;
 
-  if (/^(hi|hello|hey|yo|help|start)[!.?\s]*$/i.test(q)) {
-    return place
-      ? `Hi! You're set up for **${place}**. Ask me things like "How do I post in the forum?", "Where are events?", or "Show me housing".`
-      : `Hi! Ask me things like "How do I post in the forum?", "Where is the visa timeline?", or "How do I add an event?" — I'll point you to the right part of Expal.`;
-  }
-
-  if (/how (do|can|to)|where (is|do|can)|what is|can i|show me|find/.test(q)) {
-    return `I didn't match that to a specific section yet. Try asking about **Community** (forums), **Journey** (visa/timeline), **Explore** (housing, events, referrals), **Messages**, or **Profile**. What are you trying to accomplish?`;
+  if (/^(hi|hello|hey|help)[!.?\s]*$/i.test(q)) {
+    return visa
+      ? `Hi! You're on the **${visa}** pathway${place ? ` for ${place}` : ""}. Ask me about permit steps, IRP/PPS, housing, or say "show visa guide".`
+      : `Hi! Ask about **CSEP**, **General Work Permit**, or **EU Passport** routes — or set your visa type in Profile for tailored answers.`;
   }
 
   return place
-    ? `I'm not sure about "${message.slice(0, 80)}". For ${place}, try **Explore** (housing/events), **Community** (forums), or **Journey** (timeline). Rephrase your question and I'll guide you.`
-    : `I'm not sure about "${message.slice(0, 80)}". Try asking about forums, housing, events, Journey/visa timeline, or messages — be specific and I'll point you there.`;
+    ? `I'm not sure about "${message.slice(0, 80)}". For ${place}, try **Journey → Visa guide** or ask a specific question about your permit, housing, or timeline.`
+    : `Try asking about **CSEP**, **General Work Permit**, **EU Passport**, or **Journey → Visa guide**. Be specific and I'll help.`;
 }
 
 function localAssistantReply(message, user, _history = []) {
@@ -136,11 +123,24 @@ function normalizeHistory(history) {
   if (!Array.isArray(history)) return [];
   return history
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && m.content)
-    .slice(-8)
+    .slice(-10)
     .map((m) => ({
       role: m.role,
       content: String(m.content).slice(0, 2000),
     }));
+}
+
+function buildUserContext(user) {
+  if (!user) return "";
+  const parts = [
+    user.firstName ? `Name: ${user.firstName}` : null,
+    user.phase ? `Phase: ${user.phase}` : null,
+    user.destinationCountry ? `Country: ${user.destinationCountry}` : null,
+    user.destinationCity ? `City: ${user.destinationCity}` : null,
+    user.visaType ? `Visa/permit type: ${user.visaType}` : null,
+    user.profession ? `Profession: ${user.profession}` : null,
+  ].filter(Boolean);
+  return parts.length ? `User profile: ${parts.join(" · ")}.` : "";
 }
 
 async function openAiReply(message, user, history = []) {
@@ -148,9 +148,7 @@ async function openAiReply(message, user, history = []) {
   if (!key) return null;
 
   const model = (process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
-  const userContext = user
-    ? `User context: ${user.firstName || "Member"}, phase=${user.phase || "unknown"}, destination=${user.destinationCity || "?"}, ${user.destinationCountry || "?"}.`
-    : "";
+  const userContext = buildUserContext(user);
 
   const prior = normalizeHistory(history);
   const messages = [
@@ -168,8 +166,8 @@ async function openAiReply(message, user, history = []) {
     body: JSON.stringify({
       model,
       messages,
-      max_tokens: 500,
-      temperature: 0.6,
+      max_tokens: 800,
+      temperature: 0.7,
     }),
   });
 
@@ -184,13 +182,19 @@ async function openAiReply(message, user, history = []) {
 }
 
 async function getAssistantReply(message, user, history = []) {
+  let openaiError = null;
   try {
     const ai = await openAiReply(message, user, history);
-    if (ai) return { reply: ai, source: "openai" };
+    if (ai) return { reply: ai, source: "openai", openaiError: null };
   } catch (err) {
-    console.warn("[assistant] OpenAI failed:", err.message || err);
+    openaiError = err.message || String(err);
+    console.warn("[assistant] OpenAI failed:", openaiError);
   }
-  return { reply: localAssistantReply(message, user, history), source: "local" };
+  return {
+    reply: localAssistantReply(message, user, history),
+    source: "local",
+    openaiError,
+  };
 }
 
 function isOpenAiConfigured() {

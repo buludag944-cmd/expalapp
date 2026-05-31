@@ -22,10 +22,11 @@ router.post("/chat", async (req, res) => {
         "destinationCity",
         "destinationCountry",
         "profession",
+        "visaType",
       ],
     });
-    const { reply, source } = await getAssistantReply(message, user, history);
-    res.json({ reply, source });
+    const { reply, source, openaiError } = await getAssistantReply(message, user, history);
+    res.json({ reply, source, openaiError: openaiError || null });
   } catch (err) {
     console.error("[assistant] chat error:", err.message || err);
     res.status(500).json({ error: "Assistant is temporarily unavailable." });

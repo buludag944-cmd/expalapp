@@ -31,6 +31,11 @@ const {
 const { daysBetween, getTotalAbsenceDays, getAbsenceRiskLevel } = require("../lib/absenceTracker");
 const { calculateScore } = require("../lib/lifeAbroadScore");
 const { isOwnerOrAdmin } = require("../lib/ownership");
+const {
+  getVisaGuide,
+  listVisaOptions,
+  normalizeVisaType,
+} = require("../lib/visaGuide");
 
 const router = express.Router();
 router.use(verifyToken);
@@ -101,13 +106,14 @@ router.post("/onboarding", async (req, res) => {
       homeCountry: body.homeCountry || user.nationality,
       moveDate,
       arrivalDate,
-      visaType: body.visaType,
+      visaType: normalizeVisaType(body.visaType) || body.visaType,
       familyStatus: body.familyStatus,
       concerns: body.concerns || [],
       phase,
       onboardingComplete: true,
       currentCity: body.destinationCity || user.currentCity,
     });
+    await user.reload();
 
     const tasks = generateTasks(user);
     await TimelineTask.destroy({ where: { userId: user.id } });
@@ -608,10 +614,72 @@ router.get("/career/salary", async (req, res) => {
 });
 
 router.get("/visa-types/:country", async (req, res) => {
-  const data = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "../../data/visaTypes.json"), "utf8")
-  );
-  res.json(data[req.params.country] || data.default);
+  try {
+    res.json(listVisaOptions(req.params.country));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/visa-guide", async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const country = user.destinationCountry || "Ireland";
+    const visaType = normalizeVisaType(user.visaType);
+    const guide = getVisaGuide(country, visaType);
+    if (!guide) {
+      return res.status(404).json({
+        error: "No guide for this visa type yet. Set your visa type in Profile.",
+      });
+    }
+    res.json({
+      country,
+      visaType,
+      ...guide,
+      options: listVisaOptions(country),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/visa-type", async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const visaType = normalizeVisaType(req.body.visaType);
+    if (!visaType) {
+      return res.status(400).json({ error: "visaType is required" });
+    }
+
+    await user.update({ visaType });
+    await user.reload();
+
+    const tasks = generateTasks(user);
+    await TimelineTask.destroy({ where: { userId: user.id } });
+    await TimelineTask.bulkCreate(
+      tasks.map((t) => ({
+        userId: user.id,
+        title: t.title,
+        description: t.description,
+        category: t.category,
+        dueOffsetDays: t.dueOffsetDays,
+        dueDate: t.dueDate,
+        phase: t.phase,
+      }))
+    );
+
+    const guide = getVisaGuide(user.destinationCountry, visaType);
+    res.json({
+      user: serializeUser(user),
+      guide,
+      taskCount: tasks.length,
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 async function recalcScore(userId) {
