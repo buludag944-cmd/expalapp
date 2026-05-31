@@ -30,7 +30,7 @@ const {
 } = require("../lib/residencyCalculator");
 const { daysBetween, getTotalAbsenceDays, getAbsenceRiskLevel } = require("../lib/absenceTracker");
 const { calculateScore } = require("../lib/lifeAbroadScore");
-const { track } = require("../lib/featureTracker");
+const { isOwnerOrAdmin } = require("../lib/ownership");
 
 const router = express.Router();
 router.use(verifyToken);
@@ -378,7 +378,7 @@ router.post("/forums/threads/:id/replies", async (req, res) => {
 });
 
 function canModifyForumAuthor(user, authorId) {
-  return authorId === user.id || !!user.isAdmin;
+  return isOwnerOrAdmin(user, authorId);
 }
 
 router.patch("/forums/threads/:id", async (req, res) => {

@@ -38,14 +38,14 @@ const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
 const adminRouter = require("./routes/admin");
 const pushRouter = require("./routes/push");
-const { serializeUserProfile } = require("./lib/userProfile");
 const { sendPushToUser } = require("./services/push");
 const { initEmailTransport, getEmailStatus } = require("./services/email");
 const { isOpenAiConfigured } = require("./lib/expalAssistant");
 const dbMeta = require("./config/database").dbMeta;
 const { isConfigured: firebaseEnvSet, getAdmin: initFirebaseAdmin } = require("./services/firebaseAdmin");
 const { verifyToken } = require("./middleware/auth");
-const { JWT_SECRET } = require("./config/jwt");
+const { serializeUserProfile } = require("./lib/userProfile");
+const { isOwnerOrAdmin } = require("./lib/ownership");
 const { Op, fn, col, where } = require("sequelize");
 
 const app = express();
@@ -265,21 +265,28 @@ app.get("/api/profile", async (req, res) => {
 
 
 // DELETE referral by ID
-app.delete("/api/referrals/:id", async (req, res) => {
+app.delete("/api/referrals/:id", verifyToken, async (req, res) => {
   try {
-    const deleted = await Referral.destroy({ where: { id: req.params.id } });
-    if (!deleted) return res.status(404).json({ error: "Referral not found." });
-    res.json({ success: true });
+    const referral = await Referral.findByPk(req.params.id);
+    if (!referral) return res.status(404).json({ error: "Referral not found." });
+    if (Number(referral.userId) !== Number(req.user.id) && !req.user.isAdmin) {
+      return res.status(403).json({ error: "You can only delete your own referrals." });
+    }
+    await referral.destroy();
+    res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // PUT update referral by ID
-app.put("/api/referrals/:id", async (req, res) => {
+app.put("/api/referrals/:id", verifyToken, async (req, res) => {
   try {
     const referral = await Referral.findByPk(req.params.id);
     if (!referral) return res.status(404).json({ error: "Referral not found." });
+    if (Number(referral.userId) !== Number(req.user.id) && !req.user.isAdmin) {
+      return res.status(403).json({ error: "You can only edit your own referrals." });
+    }
 
     const { name, profession, company, message } = req.body || {};
 
@@ -456,6 +463,52 @@ app.post("/api/essentials", verifyToken, async (req, res) => {
   }
 });
 
+app.put("/api/essentials/:id", verifyToken, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid id" });
+    }
+    const row = await EssentialPost.findByPk(id);
+    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!isOwnerOrAdmin(req.user, row.createdBy)) {
+      return res.status(403).json({ error: "You can only edit your own guides." });
+    }
+    const title = (req.body?.title ?? row.title).toString().trim();
+    const category = (req.body?.category ?? row.category).toString().trim();
+    const content = (req.body?.content ?? row.content).toString().trim();
+    if (!title || !category || !content) {
+      return res.status(400).json({ error: "title, category, and content are required" });
+    }
+    await row.update({ title, category, content });
+    const withUser = await EssentialPost.findByPk(row.id, {
+      include: [{ model: User, attributes: ["id", "firstName", "lastName", "email"] }],
+    });
+    res.json(withUser);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete("/api/essentials/:id", verifyToken, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid id" });
+    }
+    const row = await EssentialPost.findByPk(id);
+    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!isOwnerOrAdmin(req.user, row.createdBy)) {
+      return res.status(403).json({ error: "You can only delete your own guides." });
+    }
+    await Comment.destroy({ where: { targetType: "essential", targetId: id } });
+    await row.destroy();
+    res.status(204).send();
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // ----- Local Know-How (tips & questions) -----
 app.get("/api/knowhow", async (_req, res) => {
   try {
@@ -508,6 +561,52 @@ app.post("/api/knowhow", verifyToken, async (req, res) => {
   }
 });
 
+app.put("/api/knowhow/:id", verifyToken, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid id" });
+    }
+    const row = await KnowHowPost.findByPk(id);
+    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!isOwnerOrAdmin(req.user, row.createdBy)) {
+      return res.status(403).json({ error: "You can only edit your own posts." });
+    }
+    const title = (req.body?.title ?? row.title).toString().trim();
+    const category = (req.body?.category ?? row.category).toString().trim();
+    const content = (req.body?.content ?? row.content).toString().trim();
+    if (!title || !category || !content) {
+      return res.status(400).json({ error: "title, category, and content are required" });
+    }
+    await row.update({ title, category, content });
+    const withUser = await KnowHowPost.findByPk(row.id, {
+      include: [{ model: User, attributes: ["id", "firstName", "lastName", "email"] }],
+    });
+    res.json(withUser);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete("/api/knowhow/:id", verifyToken, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      return res.status(400).json({ error: "Invalid id" });
+    }
+    const row = await KnowHowPost.findByPk(id);
+    if (!row) return res.status(404).json({ error: "Not found" });
+    if (!isOwnerOrAdmin(req.user, row.createdBy)) {
+      return res.status(403).json({ error: "You can only delete your own posts." });
+    }
+    await Comment.destroy({ where: { targetType: "knowhow", targetId: id } });
+    await row.destroy();
+    res.status(204).send();
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 console.log("[boot] routes mounted");
 
 // Optional: serve CRA production build (no banner text on "/")
@@ -536,7 +635,8 @@ if (process.env.RENDER === "true") {
   if (dbMeta && !dbMeta.persistent) {
     console.warn(
       "[db] ⚠️ SQLite on Render ephemeral disk — accounts disappear after each deploy. " +
-        "Connect Render Postgres to this service (DATABASE_URL). See RENDER_DATABASE_SETUP.md"
+        "Add DATABASE_URL (Render Postgres) or a persistent disk + DATABASE_PATH=/var/data/expal.db. " +
+        "See backend/RENDER_PERSISTENCE.md"
     );
   } else if (dbMeta) {
     console.log(`[db] ${dbMeta.dialect} (${dbMeta.storage}) — survives redeploys`);

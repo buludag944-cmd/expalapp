@@ -11,6 +11,8 @@ const Referral = require("../models/Referral");
 const EssentialPost = require("../models/EssentialPost");
 const KnowHowPost = require("../models/KnowHowPost");
 const { sendPushToUser } = require("../services/push");
+const { verifyToken } = require("../middleware/auth");
+const { isCommentAuthorOrAdmin } = require("../lib/ownership");
 
 // Keep in sync with Comment model THREAD_TYPES
 const ALLOWED_TARGET_TYPES = THREAD_TYPES;
@@ -255,6 +257,49 @@ router.get("/:targetType/:targetId", async (req, res) => {
   } catch (err) {
     console.error("FETCH COMMENTS ERROR:", err?.message ?? err);
     return res.status(500).json({ error: "Failed to fetch comments." });
+  }
+});
+
+router.patch("/:id", verifyToken, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return res.status(400).json({ error: "Invalid comment id." });
+  }
+
+  try {
+    const comment = await Comment.findByPk(id);
+    if (!comment) return res.status(404).json({ error: "Comment not found." });
+    if (!isCommentAuthorOrAdmin(req.user, comment)) {
+      return res.status(403).json({ error: "You can only edit your own comments." });
+    }
+    const content = (req.body?.content ?? "").toString().trim();
+    if (!content) return res.status(400).json({ error: "Missing content." });
+    await comment.update({ content });
+    const [out] = await withResolvedAuthorNames([comment]);
+    return res.json(out);
+  } catch (err) {
+    console.error("COMMENT UPDATE ERROR:", err?.message ?? err);
+    return res.status(500).json({ error: "Failed to update comment." });
+  }
+});
+
+router.delete("/:id", verifyToken, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return res.status(400).json({ error: "Invalid comment id." });
+  }
+
+  try {
+    const comment = await Comment.findByPk(id);
+    if (!comment) return res.status(404).json({ error: "Comment not found." });
+    if (!isCommentAuthorOrAdmin(req.user, comment)) {
+      return res.status(403).json({ error: "You can only delete your own comments." });
+    }
+    await comment.destroy();
+    return res.status(204).send();
+  } catch (err) {
+    console.error("COMMENT DELETE ERROR:", err?.message ?? err);
+    return res.status(500).json({ error: "Failed to delete comment." });
   }
 });
 
