@@ -59,7 +59,7 @@ app.use((req, res, next) => {
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept, Authorization"
   );
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
@@ -258,7 +258,11 @@ app.get("/api/profile", async (req, res) => {
 
     res.json(serializeUserProfile(user));
   } catch (err) {
-    res.status(401).json({ error: "Invalid email or password." });
+    console.error("[profile GET]", err.message || err);
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Invalid email or password." });
+    }
+    res.status(500).json({ error: "Could not load profile." });
   }
 });
 
