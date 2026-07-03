@@ -13,7 +13,8 @@
         { "title": "Apply for PPS number", "description": "Required for employment and tax. Book at your local Intreo/office with proof of address and employment.", "phase": "first-month" },
         { "title": "Open Irish bank account", "description": "Bring IRP card, PPS letter, employment contract, and proof of address.", "phase": "first-month" },
         { "title": "Understand Stamp 4 pathway", "description": "After 21 months on CSEP (with same employer conditions), you may be eligible to apply for Stamp 4 — verify current rules on irishimmigration.ie.", "phase": "first-year" },
-        { "title": "Track permit renewal dates", "description": "CSEP is tied to employment. If you change jobs, a new permit may be required before starting new role.", "phase": "ongoing" }
+        { "title": "Track permit renewal dates", "description": "CSEP is tied to employment. If you change jobs, a new permit may be required before starting new role.", "phase": "ongoing" },
+        { "title": "IRP card renewal or update", "description": "If your IRP card is expiring or details changed, apply for renewal. Processing often takes around 14 weeks — track your application date in Journey → Residency.", "phase": "ongoing" }
       ],
       "tips": [
         "Salary must meet the minimum for your occupation category — confirm current thresholds on enterprise.gov.ie.",
@@ -34,7 +35,8 @@
         { "title": "PPS number & tax registration", "description": "Apply for PPS to start employment legally. Employer registers you for PAYE.", "phase": "first-month" },
         { "title": "Bank account & payroll setup", "description": "Irish bank account needed for salary. Some banks accept appointment letter before IRP arrives.", "phase": "first-month" },
         { "title": "Plan permit renewal early", "description": "General permits are usually issued for up to 2 years. Start renewal 3–6 months before expiry.", "phase": "ongoing" },
-        { "title": "Explore long-term residency options", "description": "After 5 years on valid permits you may qualify for long-term residency — track all stamps and absences.", "phase": "first-year" }
+        { "title": "Explore long-term residency options", "description": "After 5 years on valid permits you may qualify for long-term residency — track all stamps and absences.", "phase": "first-year" },
+        { "title": "IRP card renewal or update", "description": "Renew or update your IRP before it expires. Card processing often takes around 14 weeks — log your application date in Journey → Residency.", "phase": "ongoing" }
       ],
       "tips": [
         "Changing employer usually requires a new permit application.",

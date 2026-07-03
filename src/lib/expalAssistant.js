@@ -4,6 +4,19 @@
  */
 
 const { getVisaGuide, normalizeVisaType } = require("./visaGuide");
+const fs = require("fs");
+const path = require("path");
+
+function loadEmploymentGuidance(status) {
+  try {
+    const data = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "../../data/employmentGuidance.json"), "utf8")
+    );
+    return data[status] || data.unemployed || null;
+  } catch {
+    return null;
+  }
+}
 
 function formatGuideReply(guide, user) {
   if (!guide) return null;
@@ -64,6 +77,31 @@ Bring: passport, permit approval letter (if non-EU), proof of address, employer 
 Book via irishimmigration.ie — Dublin slots fill fast. After registration you get your stamp.
 
 Your dated tasks are in **Journey → Timeline**.`,
+  },
+  {
+    re: /irp renewal|renew.*irp|irp card|14 weeks|waiting for irp/,
+    reply: () =>
+      `**IRP card renewal / processing** often takes around **14 weeks** after you apply.
+
+1. Apply before your current IRP expires
+2. Log your **application date** in **Journey → Residency**
+3. Expal tracks days waiting and days remaining
+
+If processing passes 14 weeks, contact Irish Immigration with your reference number.`,
+  },
+  {
+    re: /unemployed|laid off|redundan|job loss|lost my job/,
+    reply: (u) => {
+      const guide = loadEmploymentGuidance(u?.employmentStatus || "unemployed");
+      const tips = (guide?.tips || []).map((t) => `• ${t}`).join("\n");
+      return `**${guide?.title || "Unemployment abroad"}**
+
+${guide?.summary || "Update your employment status in Profile for tailored guidance."}
+
+${tips}
+
+Set status in **Profile → Employment** and check **Journey → Visa guide**.`;
+    },
   },
   {
     re: /pps|personal public service|tax number/,

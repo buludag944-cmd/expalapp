@@ -7,6 +7,8 @@ const ResidencyRecord = sequelize.define("ResidencyRecord", {
   visaType: { type: DataTypes.STRING },
   visaStartDate: { type: DataTypes.DATEONLY },
   visaExpiryDate: { type: DataTypes.DATEONLY },
+  irpApplicationDate: { type: DataTypes.DATEONLY },
+  irpExpectedWeeks: { type: DataTypes.INTEGER, defaultValue: 14 },
   prEligibilityDate: { type: DataTypes.DATEONLY },
   citizenshipEligibilityDate: { type: DataTypes.DATEONLY },
   daysRequiredForPr: { type: DataTypes.INTEGER },

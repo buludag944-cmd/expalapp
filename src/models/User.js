@@ -33,6 +33,7 @@ const User = sequelize.define("User", {
   arrivalDate: { type: DataTypes.DATEONLY },
   visaType: { type: DataTypes.STRING },
   employerName: { type: DataTypes.STRING },
+  employmentStatus: { type: DataTypes.STRING },
   familyStatus: { type: DataTypes.STRING },
   phase: { type: DataTypes.STRING, defaultValue: "relocation" },
   onboardingComplete: { type: DataTypes.BOOLEAN, defaultValue: false },

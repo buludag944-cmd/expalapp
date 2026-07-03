@@ -50,12 +50,46 @@ function generateTasks(user) {
     }));
 
   const seen = new Set();
-  return [...visaSpecific, ...base].filter((t) => {
+  const merged = [...visaSpecific, ...base].filter((t) => {
     const key = t.title.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+
+  const status = (user.employmentStatus || "").toLowerCase();
+  if (status === "unemployed" || status === "laid_off" || status === "job_seeking") {
+    const extra = [
+      {
+        title: "Relocation check-in: employment status",
+        description:
+          status === "laid_off"
+            ? "Log your redundancy date and gather your employer letter for immigration or welfare."
+            : "Review how unemployment affects your permit and register with Intreo if eligible.",
+        category: "career",
+        dueOffsetDays: 3,
+        phase: "relocation",
+        dueDate: addDays(moveDate, 3),
+      },
+      {
+        title: "Speak to immigration about your stamp",
+        description: "Confirm how job loss or job seeking affects your IRP stamp and renewal timeline.",
+        category: "legal",
+        dueOffsetDays: 7,
+        phase: "relocation",
+        dueDate: addDays(moveDate, 7),
+      },
+    ];
+    for (const t of extra) {
+      const key = t.title.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(t);
+      }
+    }
+  }
+
+  return merged;
 }
 
 function addDays(date, days) {

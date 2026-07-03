@@ -33,6 +33,7 @@ const assistantRouter = require("./routes/assistant");
 const { seedForumSpacesIfEmpty } = require("./services/seedForums");
 const { migrateExpatFields } = require("./migrations/migrateExpatFields");
 const { migrateGoogleAuth } = require("./migrations/migrateGoogleAuth");
+const { migrateEmploymentAndIrp } = require("./migrations/migrateEmploymentAndIrp");
 const eventsRouter = require("./routes/events"); // GET/POST /api/events
 const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
@@ -45,6 +46,7 @@ const dbMeta = require("./config/database").dbMeta;
 const { isConfigured: firebaseEnvSet, getAdmin: initFirebaseAdmin } = require("./services/firebaseAdmin");
 const { verifyToken } = require("./middleware/auth");
 const { serializeUserProfile } = require("./lib/userProfile");
+const { ensureEmploymentTasksForUser } = require("./lib/employmentTasks");
 const { isOwnerOrAdmin } = require("./lib/ownership");
 const { Op, fn, col, where } = require("sequelize");
 
@@ -328,7 +330,7 @@ app.put("/api/profile", verifyToken, async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
     const allowed = [
       "nationality", "currentCity", "interests", "industry", "bio", "profileImage",
-      "company", "profession", "professionCategory", "employerName", "languages",
+      "company", "profession", "professionCategory", "employerName", "employmentStatus", "languages",
       "previousCountries", "profilePublic", "isMentor", "availabilityForMentorCalls",
     ];
     const patch = {};
@@ -336,6 +338,14 @@ app.put("/api/profile", verifyToken, async (req, res) => {
       if (body[key] !== undefined) patch[key] = body[key];
     }
     const updated = await user.update(patch);
+    if (patch.employmentStatus !== undefined) {
+      await updated.reload();
+      try {
+        await ensureEmploymentTasksForUser(updated);
+      } catch (err) {
+        console.warn("[profile] employment tasks:", err.message || err);
+      }
+    }
     res.json(serializeUserProfile(updated));
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -661,6 +671,12 @@ sequelize
       await migrateGoogleAuth(sequelize);
     } catch (err) {
       console.error("[migrate] google auth:", err.message || err);
+      throw err;
+    }
+    try {
+      await migrateEmploymentAndIrp(sequelize);
+    } catch (err) {
+      console.error("[migrate] employment/irp:", err.message || err);
       throw err;
     }
     try {

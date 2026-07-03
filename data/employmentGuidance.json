@@ -1,0 +1,36 @@
+{
+  "employed": {
+    "title": "Employed",
+    "summary": "Your timeline focuses on permit compliance, payroll, and settling in."
+  },
+  "job_seeking": {
+    "title": "Looking for work",
+    "summary": "Prioritise permit rules, networking, and Intreo registration where eligible.",
+    "tips": [
+      "Check whether your current stamp still allows job seeking — rules differ by permit type.",
+      "Register with Intreo (social protection) if you are legally permitted to seek work.",
+      "Use Community forums and Members to connect with hiring managers in your city.",
+      "Keep proof of job-search activity if your permit renewal depends on employment."
+    ]
+  },
+  "unemployed": {
+    "title": "Unemployed",
+    "summary": "We'll highlight permit, welfare, and job-search steps tailored to your situation.",
+    "tips": [
+      "Contact your employer or immigration adviser about how unemployment affects your stamp.",
+      "Register with Intreo if you are eligible for job-seeker supports in Ireland.",
+      "Review permit renewal timelines — gaps in employment can affect General Work Permits.",
+      "Message mentors in Members or ask the AI guide about PPS, welfare, and next steps."
+    ]
+  },
+  "laid_off": {
+    "title": "Redundant / laid off",
+    "summary": "Losing your job abroad is stressful — track permit deadlines and support options early.",
+    "tips": [
+      "Request a redundancy letter from HR — you may need it for immigration or welfare.",
+      "Speak to immigration about how redundancy affects your IRP stamp and renewal.",
+      "You may have a limited window to find a new role under the same permit category.",
+      "Use Journey → Timeline for urgent admin tasks and Community for peer advice."
+    ]
+  }
+}

@@ -23,6 +23,7 @@ function serializeUserProfile(user) {
     arrivalDate: user.arrivalDate,
     visaType: user.visaType,
     employerName: user.employerName,
+    employmentStatus: user.employmentStatus,
     familyStatus: user.familyStatus,
     phase: user.phase || "relocation",
     onboardingComplete: !!user.onboardingComplete,

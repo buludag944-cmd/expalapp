@@ -20,6 +20,7 @@ const {
 const { verifyToken } = require("../middleware/auth");
 const { detectPhase, monthsDiff } = require("../lib/phaseDetector");
 const { generateTasks } = require("../lib/timelineGenerator");
+const { ensureEmploymentTasksForUser } = require("../lib/employmentTasks");
 const { autoSubscribe, canAccessSpace } = require("../lib/forumSubscriber");
 const { findMatches } = require("../lib/mentorMatcher");
 const {
@@ -39,6 +40,77 @@ const {
 
 const router = express.Router();
 router.use(verifyToken);
+
+const employmentGuidancePath = path.join(__dirname, "../../data/employmentGuidance.json");
+
+function addDaysIso(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildIrpRenewalStats(record) {
+  if (!record?.irpApplicationDate) return null;
+  const weeks = record.irpExpectedWeeks || 14;
+  const expectedDays = weeks * 7;
+  const today = new Date().toISOString().slice(0, 10);
+  const appDate = record.irpApplicationDate;
+  const expectedDate = addDaysIso(appDate, expectedDays);
+  const daysWaiting = Math.max(
+    0,
+    Math.floor((new Date(today) - new Date(appDate)) / 86400000)
+  );
+  const daysRemaining = Math.max(
+    0,
+    Math.ceil((new Date(expectedDate) - new Date(today)) / 86400000)
+  );
+  const progressPercent = Math.min(100, Math.round((daysWaiting / expectedDays) * 100));
+  return {
+    applicationDate: appDate,
+    expectedWeeks: weeks,
+    expectedDate,
+    daysWaiting,
+    daysRemaining,
+    progressPercent,
+    isOverdue: today > expectedDate,
+  };
+}
+
+function loadEmploymentGuidance(status) {
+  try {
+    const data = JSON.parse(fs.readFileSync(employmentGuidancePath, "utf8"));
+    return data[status] || data.employed || null;
+  } catch {
+    return null;
+  }
+}
+
+async function tryMatchMentor(user) {
+  const mentors = await User.findAll({
+    where: {
+      isMentor: true,
+      mentorVerified: true,
+      destinationCity: user.destinationCity,
+      id: { [Op.ne]: user.id },
+    },
+  });
+  const matches = findMatches(user, mentors);
+  if (!matches.length) return null;
+  const best = matches[0].mentor;
+  const existing = await MentorMatch.findOne({
+    where: { menteeId: user.id, status: { [Op.in]: ["pending", "active"] } },
+  });
+  if (existing) return existing;
+  return MentorMatch.create({
+    mentorId: best.id,
+    menteeId: user.id,
+    destinationCountry: user.destinationCountry,
+    destinationCity: user.destinationCity,
+    profession: user.profession,
+    status: "pending",
+    initiatedBy: "system",
+  });
+}
 
 function serializeUser(user) {
   return {
@@ -63,6 +135,7 @@ function serializeUser(user) {
     arrivalDate: user.arrivalDate,
     visaType: user.visaType,
     employerName: user.employerName,
+    employmentStatus: user.employmentStatus,
     familyStatus: user.familyStatus,
     phase: user.phase,
     onboardingComplete: !!user.onboardingComplete,
@@ -107,6 +180,7 @@ router.post("/onboarding", async (req, res) => {
       moveDate,
       arrivalDate,
       visaType: normalizeVisaType(body.visaType) || body.visaType,
+      employmentStatus: body.employmentStatus || "employed",
       familyStatus: body.familyStatus,
       concerns: body.concerns || [],
       phase,
@@ -138,32 +212,7 @@ router.post("/onboarding", async (req, res) => {
       );
     }
 
-    const mentors = await User.findAll({
-      where: {
-        isMentor: true,
-        mentorVerified: true,
-        destinationCity: user.destinationCity,
-        id: { [Op.ne]: user.id },
-      },
-    });
-    const matches = findMatches(user, mentors);
-    if (matches.length) {
-      const best = matches[0].mentor;
-      const existing = await MentorMatch.findOne({
-        where: { menteeId: user.id, status: { [Op.in]: ["pending", "active"] } },
-      });
-      if (!existing) {
-        await MentorMatch.create({
-          mentorId: best.id,
-          menteeId: user.id,
-          destinationCountry: user.destinationCountry,
-          destinationCity: user.destinationCity,
-          profession: user.profession,
-          status: "pending",
-          initiatedBy: "system",
-        });
-      }
-    }
+    await tryMatchMentor(user);
 
     const prDate = calcPREligibilityDate(arrivalDate, user.destinationCountry);
     const citDate = calcCitizenshipEligibilityDate(arrivalDate, user.destinationCountry);
@@ -180,6 +229,26 @@ router.post("/onboarding", async (req, res) => {
 
     await user.reload();
     res.json({ user: serializeUser(user), taskCount: tasks.length });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// PUT /api/journey/employment-status
+router.put("/employment-status", async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const status = (req.body?.employmentStatus || "").trim();
+    const allowed = ["employed", "job_seeking", "unemployed", "laid_off"];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: "Invalid employment status" });
+    }
+    await user.update({ employmentStatus: status });
+    await user.reload();
+    const tasksAdded = await ensureEmploymentTasksForUser(user);
+
+    res.json({ user: serializeUser(user), tasksAdded });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -481,6 +550,26 @@ router.get("/mentors/match", async (req, res) => {
   }
 });
 
+router.post("/mentors/find", async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const match = await tryMatchMentor(user);
+    if (!match) {
+      return res.json({
+        matched: false,
+        message: "No verified mentors in your city yet. Browse Members or Community.",
+      });
+    }
+    const mentor = await User.findByPk(match.mentorId, {
+      attributes: ["id", "firstName", "lastName", "profession", "professionCategory", "destinationCity"],
+    });
+    res.json({ matched: true, status: match.status, mentor });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/mentors/match/:id/accept", async (req, res) => {
   try {
     const match = await MentorMatch.findOne({
@@ -515,9 +604,38 @@ router.get("/residency", async (req, res) => {
       absentYtd,
       absenceRisk: risk,
       prProgress: prProgressPercent(daysPresent, user.destinationCountry),
+      irpRenewal: buildIrpRenewalStats(record),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch("/residency/irp", async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const { applicationDate, expectedWeeks } = req.body || {};
+    if (!applicationDate) {
+      return res.status(400).json({ error: "applicationDate required" });
+    }
+    let record = await ResidencyRecord.findOne({ where: { userId: user.id } });
+    if (!record) {
+      record = await ResidencyRecord.create({
+        userId: user.id,
+        country: user.destinationCountry,
+        visaType: user.visaType,
+        visaStartDate: user.arrivalDate,
+      });
+    }
+    await record.update({
+      irpApplicationDate: applicationDate,
+      irpExpectedWeeks: Math.min(26, Math.max(1, Number(expectedWeeks) || 14)),
+    });
+    await record.reload();
+    res.json({ record, irpRenewal: buildIrpRenewalStats(record) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -638,6 +756,14 @@ router.get("/visa-guide", async (req, res) => {
       visaType,
       ...guide,
       options: listVisaOptions(country),
+      employmentGuidance: loadEmploymentGuidance(user.employmentStatus || "employed"),
+      irpRenewalGuide: {
+        typicalWeeks: 14,
+        title: "IRP card processing",
+        summary:
+          "After you apply for or renew your IRP, processing often takes around 14 weeks. Track your application date in Journey → Residency.",
+        officialUrl: "https://www.irishimmigration.ie/",
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
