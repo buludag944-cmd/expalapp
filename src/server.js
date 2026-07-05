@@ -45,6 +45,7 @@ const { isOpenAiConfigured } = require("./lib/expalAssistant");
 const dbMeta = require("./config/database").dbMeta;
 const { isConfigured: firebaseEnvSet, getAdmin: initFirebaseAdmin } = require("./services/firebaseAdmin");
 const { verifyToken } = require("./middleware/auth");
+const { JWT_SECRET } = require("./config/jwt");
 const { serializeUserProfile } = require("./lib/userProfile");
 const { ensureEmploymentTasksForUser } = require("./lib/employmentTasks");
 const { isOwnerOrAdmin } = require("./lib/ownership");
