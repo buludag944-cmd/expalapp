@@ -17,6 +17,10 @@ const {
   emailDeliveryConfigured,
 } = require("../services/email");
 const { isConfigured: firebaseConfigured, verifyIdToken } = require("../services/firebaseAdmin");
+const {
+  looksLikeGoogleOAuthToken,
+  verifyGoogleOAuthIdToken,
+} = require("../services/googleOAuthVerify");
 
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 /** Password reset link TTL — configurable; default 60 minutes. */
@@ -488,7 +492,20 @@ function buildGoogleAuthHandler() {
         return res.status(400).json({ error: "Missing Google sign-in token." });
       }
 
-      const decoded = await verifyIdToken(idToken);
+      let decoded;
+      if (looksLikeGoogleOAuthToken(idToken)) {
+        decoded = await verifyGoogleOAuthIdToken(idToken);
+      } else {
+        try {
+          decoded = await verifyIdToken(idToken);
+        } catch (firebaseErr) {
+          if (/aud|audience/i.test(firebaseErr.message || "")) {
+            decoded = await verifyGoogleOAuthIdToken(idToken);
+          } else {
+            throw firebaseErr;
+          }
+        }
+      }
       const signInProvider = decoded.firebase?.sign_in_provider;
       if (signInProvider && signInProvider !== "google.com") {
         return res.status(403).json({ error: "Only Google sign-in is supported." });
