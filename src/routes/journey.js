@@ -23,6 +23,7 @@ const { generateTasks } = require("../lib/timelineGenerator");
 const { ensureEmploymentTasksForUser } = require("../lib/employmentTasks");
 const { autoSubscribe, canAccessSpace } = require("../lib/forumSubscriber");
 const { findMatches } = require("../lib/mentorMatcher");
+const { notifyForumThreadReply, notifyForumNewThread } = require("../lib/pushNotify");
 const {
   calcDaysPresent,
   calcPREligibilityDate,
@@ -425,6 +426,13 @@ router.post("/forums/threads", async (req, res) => {
       professionTag: professionTag || user.professionCategory,
       phaseTag: user.phase,
     });
+    const space = await ForumSpace.findByPk(spaceId);
+    notifyForumNewThread({
+      thread,
+      author: user,
+      spaceName: space?.name,
+      ForumSubscription,
+    }).catch((err) => console.error("[push] new thread:", err.message || err));
     res.status(201).json(thread);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -446,6 +454,14 @@ router.post("/forums/threads/:id/replies", async (req, res) => {
       replyCount: thread.replyCount + 1,
       lastActivityAt: new Date(),
     });
+    const replyAuthor = await User.findByPk(req.user.id);
+    notifyForumThreadReply({
+      thread,
+      replyAuthorId: req.user.id,
+      replyAuthor,
+      body,
+      ForumReply,
+    }).catch((err) => console.error("[push] thread reply:", err.message || err));
     res.status(201).json(reply);
   } catch (err) {
     res.status(400).json({ error: err.message });

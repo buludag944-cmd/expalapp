@@ -10,7 +10,7 @@ const Housing = require("../models/Housing");
 const Referral = require("../models/Referral");
 const EssentialPost = require("../models/EssentialPost");
 const KnowHowPost = require("../models/KnowHowPost");
-const { sendPushToUser } = require("../services/push");
+const { commentNotifyMeta, notifyUserSafe } = require("../lib/pushNotify");
 const { verifyToken } = require("../middleware/auth");
 const { isCommentAuthorOrAdmin } = require("../lib/ownership");
 
@@ -196,18 +196,18 @@ router.post("/", async (req, res) => {
             .toString()
             .trim() || "Someone";
         const preview = payload.content.slice(0, 100);
-        sendPushToUser(ownerId, {
-          title: "New comment on your post",
+        const meta = commentNotifyMeta(payload.targetType);
+        notifyUserSafe(ownerId, {
+          title: meta.title,
           body: `${commenterLabel}: ${preview}`,
           data: {
             type: "comment",
+            kind: meta.kind,
             targetType: payload.targetType,
             targetId: String(payload.targetId),
             path: commentDeepLinkPath(payload.targetType, payload.targetId),
           },
-        }).catch((err) =>
-          console.error("[push] comment notify:", err.message || err)
-        );
+        });
       }
     }
 
