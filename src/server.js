@@ -39,7 +39,9 @@ const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
 const adminRouter = require("./routes/admin");
 const pushRouter = require("./routes/push");
-const { sendPushToUser } = require("./services/push");
+const notificationsRouter = require("./routes/notifications");
+const supportRouter = require("./routes/support");
+const { createAndPushNotification } = require("./lib/pushNotify");
 const { initEmailTransport, getEmailStatus } = require("./services/email");
 const { isOpenAiConfigured } = require("./lib/expalAssistant");
 const dbMeta = require("./config/database").dbMeta;
@@ -84,6 +86,8 @@ app.use("/api/events", eventsRouter);
 // Comments on events, housing listings, or referral posts — POST /api/comments · GET …/:targetType/:targetId
 app.use("/api/comments", commentRoutes);
 app.use("/api/push", pushRouter);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/support", supportRouter);
 app.use("/api/journey", journeyRouter);
 app.use("/api/assistant", assistantRouter);
 
@@ -196,11 +200,14 @@ app.post("/api/housing", verifyToken, async (req, res) => {
   }
 });
 
-// PUT update housing listing by ID
-app.put("/api/housing/:id", async (req, res) => {
+// PUT update housing listing by ID (owner or admin only)
+app.put("/api/housing/:id", verifyToken, async (req, res) => {
   try {
     const listing = await Housing.findByPk(req.params.id);
     if (!listing) return res.status(404).json({ error: "Listing not found." });
+    if (!isOwnerOrAdmin(req.user, listing.userId)) {
+      return res.status(403).json({ error: "Not allowed to edit this listing." });
+    }
 
     const { title, city, price, description, images } = req.body || {};
 
@@ -227,11 +234,15 @@ app.put("/api/housing/:id", async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-// DELETE listing by ID
-app.delete("/api/housing/:id", async (req, res) => {
+// DELETE listing by ID (owner or admin only)
+app.delete("/api/housing/:id", verifyToken, async (req, res) => {
   try {
-    const deleted = await Housing.destroy({ where: { id: req.params.id } });
-    if (!deleted) return res.status(404).json({ error: "Listing not found." });
+    const listing = await Housing.findByPk(req.params.id);
+    if (!listing) return res.status(404).json({ error: "Listing not found." });
+    if (!isOwnerOrAdmin(req.user, listing.userId)) {
+      return res.status(403).json({ error: "Not allowed to delete this listing." });
+    }
+    await listing.destroy();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -353,10 +364,25 @@ app.put("/api/profile", verifyToken, async (req, res) => {
   }
 });
 
+// Unread DM count for badges (must be before /:userId)
+app.get("/api/messages/unread-count", verifyToken, async (req, res) => {
+  try {
+    const count = await Message.count({
+      where: { receiverId: req.user.id, isRead: false },
+    });
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET conversation with another user
 app.get("/api/messages/:userId", verifyToken, async (req, res) => {
   try {
     const otherUserId = Number(req.params.userId);
+    if (!Number.isFinite(otherUserId) || otherUserId <= 0) {
+      return res.status(400).json({ error: "Invalid user id" });
+    }
     const messages = await Message.findAll({
       where: {
         [Op.or]: [
@@ -369,6 +395,17 @@ app.get("/api/messages/:userId", verifyToken, async (req, res) => {
       ],
       order: [["createdAt", "ASC"]],
     });
+    // Mark received messages as read when the thread is opened
+    await Message.update(
+      { isRead: true },
+      {
+        where: {
+          senderId: otherUserId,
+          receiverId: req.user.id,
+          isRead: false,
+        },
+      }
+    );
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -381,10 +418,19 @@ app.post("/api/messages", verifyToken, async (req, res) => {
     if (!receiverId || !content) {
       return res.status(400).json({ error: "Receiver and content required" });
     }
+    const rid = Number(receiverId);
+    if (!Number.isFinite(rid) || rid === Number(req.user.id)) {
+      return res.status(400).json({ error: "Invalid receiver" });
+    }
+    const receiver = await User.findByPk(rid, { attributes: ["id"] });
+    if (!receiver) {
+      return res.status(404).json({ error: "Receiver not found" });
+    }
     const message = await Message.create({
       senderId: req.user.id,
-      receiverId: Number(receiverId),
+      receiverId: rid,
       content: content.trim(),
+      isRead: false,
     });
     const messageWithSender = await Message.findByPk(message.id, {
       include: [{ model: User, as: "Sender", attributes: ["id", "firstName", "lastName"] }],
@@ -395,10 +441,16 @@ app.post("/api/messages", verifyToken, async (req, res) => {
       ? `${sender.firstName || ""} ${sender.lastName || ""}`.trim() || "Someone"
       : "Someone";
     const preview = content.trim().slice(0, 120);
-    sendPushToUser(Number(receiverId), {
+    createAndPushNotification(rid, {
       title: "New message on EXPal",
       body: `${senderName}: ${preview}`,
-      data: { type: "message", peerId: String(req.user.id) },
+      type: "message",
+      actorId: req.user.id,
+      data: {
+        type: "message",
+        peerId: String(req.user.id),
+        path: `/messages?user=${req.user.id}`,
+      },
     }).catch((err) => console.error("[push] message notify:", err.message || err));
 
     res.status(201).json(messageWithSender);
@@ -406,21 +458,52 @@ app.post("/api/messages", verifyToken, async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-// GET all conversations for current user
+// GET all conversations for current user (one row per peer, latest message + unreadCount)
 app.get("/api/conversations", verifyToken, async (req, res) => {
   try {
+    const me = req.user.id;
     const conversations = await Message.findAll({
       where: {
-        [Op.or]: [{ senderId: req.user.id }, { receiverId: req.user.id }],
+        [Op.or]: [{ senderId: me }, { receiverId: me }],
       },
       include: [
-        { model: User, as: "Sender", attributes: ["id", "firstName", "lastName"] },
-        { model: User, as: "Receiver", attributes: ["id", "firstName", "lastName"] },
+        { model: User, as: "Sender", attributes: ["id", "firstName", "lastName", "profileImage"] },
+        { model: User, as: "Receiver", attributes: ["id", "firstName", "lastName", "profileImage"] },
       ],
       order: [["createdAt", "DESC"]],
-      limit: 20,
+      limit: 200,
     });
-    res.json(conversations);
+    const byPeer = new Map();
+    for (const row of conversations) {
+      const plain = row.get({ plain: true });
+      const peerId = plain.senderId === me ? plain.receiverId : plain.senderId;
+      if (!byPeer.has(peerId)) {
+        byPeer.set(peerId, plain);
+      }
+    }
+
+    const unreadMessages = await Message.findAll({
+      where: { receiverId: me, isRead: false },
+      attributes: ["senderId"],
+    });
+    const unreadByPeer = new Map();
+    for (const row of unreadMessages) {
+      const sid = Number(row.senderId);
+      unreadByPeer.set(sid, (unreadByPeer.get(sid) || 0) + 1);
+    }
+
+    const out = [...byPeer.values()].map((plain) => {
+      const peerId = plain.senderId === me ? plain.receiverId : plain.senderId;
+      return {
+        ...plain,
+        unreadCount: unreadByPeer.get(peerId) || 0,
+        peer:
+          plain.senderId === me
+            ? plain.Receiver || { id: plain.receiverId }
+            : plain.Sender || { id: plain.senderId },
+      };
+    });
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

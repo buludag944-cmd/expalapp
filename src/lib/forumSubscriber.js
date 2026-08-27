@@ -7,7 +7,7 @@ function loadSpaces() {
   return JSON.parse(fs.readFileSync(spacesPath, "utf8"));
 }
 
-const ALWAYS = ["Career & Work"];
+const ALWAYS = ["App General", "Career & Work"];
 const BY_COUNTRY = [
   "Tax & Finance",
   "Banking & Money",

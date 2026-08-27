@@ -22,6 +22,7 @@ const AbsenceLog = require("./models/AbsenceLog");
 const Document = require("./models/Document");
 const LifeAbroadScore = require("./models/LifeAbroadScore");
 const FeatureEvent = require("./models/FeatureEvent");
+const Notification = require("./models/Notification");
 
 User.hasMany(Housing, { foreignKey: "userId" });
 Housing.belongsTo(User, { foreignKey: "userId" });
@@ -63,6 +64,9 @@ Document.belongsTo(User, { foreignKey: "userId" });
 User.hasOne(LifeAbroadScore, { foreignKey: "userId" });
 LifeAbroadScore.belongsTo(User, { foreignKey: "userId" });
 User.hasMany(FeatureEvent, { foreignKey: "userId" });
+User.hasMany(Notification, { foreignKey: "userId", onDelete: "CASCADE" });
+Notification.belongsTo(User, { foreignKey: "userId" });
+Notification.belongsTo(User, { as: "Actor", foreignKey: "actorId" });
 
 module.exports = {
   sequelize,
@@ -86,4 +90,5 @@ module.exports = {
   Document,
   LifeAbroadScore,
   FeatureEvent,
+  Notification,
 };

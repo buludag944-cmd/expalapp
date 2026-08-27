@@ -1,4 +1,5 @@
 [
+  { "name": "App General", "description": "App updates, announcements, how-to questions, feedback, and discussions about EXPal itself.", "countryTag": false, "phaseTag": null },
   { "name": "Tax & Finance", "description": "Tax filing, pensions, and money matters abroad.", "countryTag": true, "phaseTag": null },
   { "name": "Banking & Money", "description": "Opening accounts, transfers, and local banking tips.", "countryTag": true, "phaseTag": null },
   { "name": "Visa & Legal", "description": "Visas, permits, and immigration questions.", "countryTag": true, "phaseTag": null },

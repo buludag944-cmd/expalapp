@@ -206,6 +206,7 @@ router.post("/", async (req, res) => {
             targetType: payload.targetType,
             targetId: String(payload.targetId),
             path: commentDeepLinkPath(payload.targetType, payload.targetId),
+            actorId: commenter ? String(commenter.id) : undefined,
           },
         });
       }

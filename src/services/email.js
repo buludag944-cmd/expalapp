@@ -187,6 +187,21 @@ async function sendGoogleSignInReminderEmail({ to, loginUrl }) {
   console.log("[forgot] Google sign-in reminder sent to", to);
 }
 
+/** Member → founder contact form. */
+async function sendSupportContactEmail({ to, fromMember, message }) {
+  const subject = `[EXPal Contact Founder] from ${fromMember.name} (#${fromMember.id})`;
+  const html = `
+    <p><strong>Member:</strong> ${fromMember.name}</p>
+    <p><strong>Email:</strong> ${fromMember.email}</p>
+    <p><strong>User ID:</strong> ${fromMember.id}</p>
+    <hr />
+    <p>${String(message).replace(/</g, "&lt;").replace(/\n/g, "<br/>")}</p>
+  `;
+  const text = `Member: ${fromMember.name}\nEmail: ${fromMember.email}\nUser ID: ${fromMember.id}\n\n${message}`;
+  await sendMailMessage({ to, subject, html, text });
+  console.log("[support] contact email sent for member", fromMember.id);
+}
+
 /** Safe status for /health (no secrets). */
 function getEmailStatus() {
   const resend = resendApiKeyConfigured();
@@ -213,6 +228,7 @@ module.exports = {
   sendVerificationEmail,
   sendResetEmail,
   sendGoogleSignInReminderEmail,
+  sendSupportContactEmail,
   initEmailTransport,
   smtpHostConfigured,
   emailDeliveryConfigured,

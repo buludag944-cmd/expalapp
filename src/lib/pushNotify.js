@@ -24,10 +24,59 @@ function commentNotifyMeta(targetType) {
   }
 }
 
+/**
+ * Persist an in-app notification and optionally send a push.
+ * @param {number} userId
+ * @param {{ title: string, body?: string, type?: string, data?: object, actorId?: number, push?: boolean }} opts
+ */
+async function createAndPushNotification(userId, opts = {}) {
+  if (!userId) return null;
+  const title = opts.title || "EXPal";
+  const body = opts.body || "";
+  const type = opts.type || (opts.data && opts.data.type) || "general";
+  const data = opts.data || {};
+  const actorId = opts.actorId != null ? Number(opts.actorId) : null;
+
+  let row = null;
+  try {
+    const Notification = require("../models/Notification");
+    row = await Notification.create({
+      userId: Number(userId),
+      actorId: Number.isFinite(actorId) && actorId > 0 ? actorId : null,
+      type: String(type),
+      title: String(title).slice(0, 255),
+      body: String(body).slice(0, 2000),
+      data: JSON.stringify(data),
+      isRead: false,
+    });
+  } catch (err) {
+    console.error("[notify] persist failed:", err.message || err);
+  }
+
+  if (opts.push !== false) {
+    await sendPushToUser(Number(userId), {
+      title,
+      body,
+      data: Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [k, v == null ? "" : String(v)])
+      ),
+    }).catch((err) => {
+      console.error("[push] notify failed:", err.message || err);
+    });
+  }
+
+  return row;
+}
+
 function notifyUserSafe(userId, payload) {
   if (!userId) return Promise.resolve();
-  return sendPushToUser(Number(userId), payload).catch((err) => {
-    console.error("[push] notify failed:", err.message || err);
+  const data = payload?.data || {};
+  return createAndPushNotification(Number(userId), {
+    title: payload?.title || "EXPal",
+    body: payload?.body || "",
+    type: data.type || "general",
+    data,
+    actorId: data.actorId ? Number(data.actorId) : undefined,
   });
 }
 
@@ -47,6 +96,7 @@ async function notifyForumThreadReply({ thread, replyAuthorId, replyAuthor, body
       type: "forum_thread",
       threadId: String(thread.id),
       path,
+      actorId: String(replyAuthorId),
     },
   };
 
@@ -83,6 +133,7 @@ async function notifyForumNewThread({ thread, author, spaceName, ForumSubscripti
       type: "forum_thread",
       threadId: String(thread.id),
       path,
+      actorId: String(author.id),
     },
   };
 
@@ -97,6 +148,7 @@ async function notifyForumNewThread({ thread, author, spaceName, ForumSubscripti
 module.exports = {
   displayName,
   commentNotifyMeta,
+  createAndPushNotification,
   notifyUserSafe,
   notifyUsersSafe,
   notifyForumThreadReply,
