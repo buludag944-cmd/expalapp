@@ -41,6 +41,7 @@ const adminRouter = require("./routes/admin");
 const pushRouter = require("./routes/push");
 const notificationsRouter = require("./routes/notifications");
 const supportRouter = require("./routes/support");
+const searchRouter = require("./routes/search");
 const { createAndPushNotification } = require("./lib/pushNotify");
 const { initEmailTransport, getEmailStatus } = require("./services/email");
 const { isOpenAiConfigured } = require("./lib/expalAssistant");
@@ -88,6 +89,7 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/push", pushRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/support", supportRouter);
+app.use("/api/search", searchRouter);
 app.use("/api/journey", journeyRouter);
 app.use("/api/assistant", assistantRouter);
 
