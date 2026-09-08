@@ -1,9 +1,12 @@
 /**
  * Firebase Cloud Messaging (FCM) — works from Render over HTTPS.
+ * Android: FCM direct. iOS: FCM → APNs (requires APNs key in Firebase Console).
  * Set FIREBASE_SERVICE_ACCOUNT_JSON on Render (full service account JSON, one line).
  */
 const DeviceToken = require("../models/DeviceToken");
 const { isConfigured, getAdmin } = require("./firebaseAdmin");
+
+const ANDROID_CHANNEL_ID = "expal_default";
 
 function pushEnabled() {
   return isConfigured();
@@ -16,6 +19,7 @@ function getMessaging() {
 
 /**
  * Send notification to all devices registered for a user.
+ * Uses a display `notification` payload so lock-screen / tray works when the app is backgrounded.
  */
 async function sendPushToUser(userId, { title, body, data = {} }) {
   const messaging = getMessaging();
@@ -38,7 +42,28 @@ async function sendPushToUser(userId, { title, body, data = {} }) {
       tokens,
       notification: { title, body },
       data: dataPayload,
-      android: { priority: "high" },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: ANDROID_CHANNEL_ID,
+          sound: "default",
+          defaultVibrateTimings: true,
+          notificationCount: 1,
+        },
+      },
+      apns: {
+        headers: {
+          "apns-priority": "10",
+          "apns-push-type": "alert",
+        },
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1,
+            "content-available": 1,
+          },
+        },
+      },
     });
 
     const stale = [];
