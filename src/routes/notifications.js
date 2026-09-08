@@ -119,4 +119,30 @@ router.post("/read-messages", verifyToken, async (req, res) => {
   }
 });
 
+/** Delete all read notifications for the current user. */
+router.delete("/read", verifyToken, async (req, res) => {
+  try {
+    const deleted = await Notification.destroy({
+      where: { userId: req.user.id, isRead: true },
+    });
+    res.json({ deleted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Delete one notification (owner only). Prefer deleting after it has been read. */
+router.delete("/:id", verifyToken, async (req, res) => {
+  try {
+    const row = await Notification.findOne({
+      where: { id: req.params.id, userId: req.user.id },
+    });
+    if (!row) return res.status(404).json({ error: "Notification not found" });
+    await row.destroy();
+    res.json({ ok: true, id: Number(req.params.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
