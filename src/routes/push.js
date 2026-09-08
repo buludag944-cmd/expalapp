@@ -52,9 +52,27 @@ router.delete("/unregister", verifyToken, async (req, res) => {
   }
 });
 
-/** GET /api/push/status — whether server can send push */
-router.get("/status", verifyToken, (_req, res) => {
-  res.json({ pushEnabled: pushEnabled() });
+/** GET /api/push/status — whether server can send push + device count for this user */
+router.get("/status", verifyToken, async (req, res) => {
+  try {
+    const count = await DeviceToken.count({ where: { userId: req.user.id } });
+    const rows = await DeviceToken.findAll({
+      where: { userId: req.user.id },
+      attributes: ["platform", "updatedAt"],
+      order: [["updatedAt", "DESC"]],
+      limit: 5,
+    });
+    res.json({
+      pushEnabled: pushEnabled(),
+      deviceCount: count,
+      devices: rows.map((r) => ({
+        platform: r.platform,
+        updatedAt: r.updatedAt,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

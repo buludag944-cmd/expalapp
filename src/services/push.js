@@ -59,8 +59,6 @@ async function sendPushToUser(userId, { title, body, data = {} }) {
         payload: {
           aps: {
             sound: "default",
-            badge: 1,
-            "content-available": 1,
           },
         },
       },
