@@ -343,6 +343,7 @@ app.put("/api/profile", verifyToken, async (req, res) => {
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ error: "User not found" });
     const allowed = [
+      "firstName", "lastName",
       "nationality", "currentCity", "interests", "industry", "bio", "profileImage",
       "company", "profession", "professionCategory", "employerName", "employmentStatus", "languages",
       "previousCountries", "profilePublic", "isMentor", "availabilityForMentorCalls",
@@ -350,6 +351,18 @@ app.put("/api/profile", verifyToken, async (req, res) => {
     const patch = {};
     for (const key of allowed) {
       if (body[key] !== undefined) patch[key] = body[key];
+    }
+    if (patch.firstName !== undefined) {
+      patch.firstName = String(patch.firstName || "").trim();
+      if (!patch.firstName) {
+        return res.status(400).json({ error: "First name is required." });
+      }
+    }
+    if (patch.lastName !== undefined) {
+      patch.lastName = String(patch.lastName || "").trim();
+      if (!patch.lastName) {
+        return res.status(400).json({ error: "Last name is required." });
+      }
     }
     const updated = await user.update(patch);
     if (patch.employmentStatus !== undefined) {
@@ -363,6 +376,22 @@ app.put("/api/profile", verifyToken, async (req, res) => {
     res.json(serializeUserProfile(updated));
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE own account + associated data (self-service)
+app.delete("/api/profile", verifyToken, async (req, res) => {
+  try {
+    const { deleteUserAccount } = require("./lib/deleteUserAccount");
+    const result = await deleteUserAccount(req.user.id);
+    console.log(
+      `[profile] delete account user=${result.id} email=${result.email} at=${new Date().toISOString()}`
+    );
+    res.status(200).json({ message: "Account deleted." });
+  } catch (err) {
+    const status = err.status || 500;
+    console.error("[profile] delete account error:", err.message || err);
+    res.status(status).json({ error: err.message || "Could not delete account." });
   }
 });
 
