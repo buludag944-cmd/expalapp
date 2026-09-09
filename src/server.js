@@ -473,8 +473,8 @@ app.post("/api/messages", verifyToken, async (req, res) => {
       : "Someone";
     const preview = content.trim().slice(0, 120);
     createAndPushNotification(rid, {
-      title: "New message on EXPal",
-      body: `${senderName}: ${preview}`,
+      title: senderName,
+      body: preview,
       type: "message",
       actorId: req.user.id,
       data: {
