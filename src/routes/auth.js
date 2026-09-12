@@ -201,8 +201,13 @@ function buildLoginHandler() {
         return res.status(401).json({ error: "Invalid email or password." });
       }
 
-      if (user.authProvider === "google") {
-        return res.status(401).json({ error: "This account uses Google sign-in. Tap Continue with Google." });
+      if (user.authProvider === "google" || user.authProvider === "apple") {
+        return res.status(401).json({
+          error:
+            user.authProvider === "apple"
+              ? "This account uses Sign in with Apple. Tap Sign in with Apple."
+              : "This account uses Google sign-in. Tap Continue with Google.",
+        });
       }
 
       const ok = await bcrypt.compare(password, user.password);
@@ -375,7 +380,7 @@ function buildForgotPasswordHandler() {
         );
 
         try {
-          if (user.authProvider === "google") {
+          if (user.authProvider === "google" || user.authProvider === "apple") {
             await sendGoogleSignInReminderEmail({
               to: email,
               loginUrl: `${clientUrl}/`,
@@ -562,11 +567,110 @@ function buildGoogleAuthHandler() {
   };
 }
 
+/**
+ * POST /api/auth/apple — Firebase ID token from Sign in with Apple (iOS).
+ * Matches returning users by firebaseUid (stable) even when Apple omits name/email
+ * on subsequent logins. Private relay emails (@privaterelay.appleid.com) are stored as-is.
+ */
+function buildAppleAuthHandler() {
+  return async function appleAuthHandler(req, res) {
+    try {
+      if (!firebaseConfigured()) {
+        return res.status(503).json({
+          error:
+            "Apple sign-in is not configured on the server. On Render, set FIREBASE_SERVICE_ACCOUNT_JSON, enable Apple in Firebase Authentication, then redeploy.",
+        });
+      }
+
+      const idToken = (req.body.idToken ?? "").toString().trim();
+      if (!idToken) {
+        return res.status(400).json({ error: "Missing Apple sign-in token." });
+      }
+
+      let decoded;
+      try {
+        decoded = await verifyIdToken(idToken);
+      } catch (err) {
+        console.error("[auth/apple] verifyIdToken:", err.message || err);
+        return res.status(401).json({ error: "Apple sign-in failed. Try again." });
+      }
+
+      const signInProvider = decoded.firebase?.sign_in_provider;
+      if (signInProvider && signInProvider !== "apple.com") {
+        return res.status(403).json({ error: "Only Sign in with Apple is supported on this endpoint." });
+      }
+
+      const firebaseUid = decoded.uid;
+      if (!firebaseUid) {
+        return res.status(400).json({ error: "Apple sign-in did not return a stable user id." });
+      }
+
+      let email = (decoded.email ?? "").toString().trim().toLowerCase();
+      const bodyFirst = (req.body.firstName ?? "").toString().trim();
+      const bodyLast = (req.body.lastName ?? "").toString().trim();
+      const { firstName: tokenFirst, lastName: tokenLast } = splitDisplayName(decoded.name);
+      const firstName = bodyFirst || tokenFirst || "Expal";
+      const lastName = bodyLast || tokenLast || "Member";
+
+      let user = await User.findOne({ where: { firebaseUid } });
+
+      if (!user && email) {
+        user = await User.findOne({ where: where(fn("lower", col("email")), email) });
+      }
+
+      if (user) {
+        user.firebaseUid = firebaseUid;
+        user.authProvider = "apple";
+        user.isVerified = true;
+        user.verifyToken = null;
+        user.verifyTokenExpiresAt = null;
+        if ((!user.firstName || user.firstName === "Expal") && firstName) user.firstName = firstName;
+        if ((!user.lastName || user.lastName === "Member") && lastName) user.lastName = lastName;
+        await user.save();
+        await user.reload();
+        console.log(`[auth/apple] existing user id=${user.id} email=${user.email} onboarding=${!!user.onboardingComplete}`);
+      } else {
+        if (!email) {
+          return res.status(400).json({
+            error:
+              "Apple did not share an email for this account. Use Hide My Email or share your email, then try again.",
+          });
+        }
+        const hashedPassword = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10);
+        user = await User.create({
+          firstName,
+          lastName,
+          email,
+          password: hashedPassword,
+          authProvider: "apple",
+          firebaseUid,
+          isVerified: true,
+        });
+        console.log(`[auth/apple] new user id=${user.id} email=${email}`);
+      }
+
+      return res.json(issueAuthTokenPayload(user));
+    } catch (err) {
+      console.error("[auth/apple]", err.message || err);
+      if (err.code === "FIREBASE_NOT_CONFIGURED") {
+        return res.status(503).json({ error: "Apple sign-in is not configured on the server." });
+      }
+      if (err.name === "SequelizeUniqueConstraintError") {
+        return res.status(409).json({
+          error: "An account with this email already exists. Sign in with your original method.",
+        });
+      }
+      return res.status(401).json({ error: "Apple sign-in failed. Try again." });
+    }
+  };
+}
+
 const verifyHandler = buildVerifyHandler();
 const resendVerificationHandler = buildResendVerificationHandler();
 const forgotPasswordHandler = buildForgotPasswordHandler();
 const resetPasswordHandler = buildResetPasswordHandler();
 const googleAuthHandler = buildGoogleAuthHandler();
+const appleAuthHandler = buildAppleAuthHandler();
 
 const authRouter = express.Router();
 authRouter.get("/verify/:token", verifyHandler);
@@ -574,11 +678,13 @@ authRouter.post("/resend-verification", resendVerificationHandler);
 authRouter.post("/forgot-password", forgotPasswordHandler);
 authRouter.post("/reset-password", resetPasswordHandler);
 authRouter.post("/google", googleAuthHandler);
+authRouter.post("/apple", appleAuthHandler);
 
 module.exports = {
   registerHandler,
   loginHandler,
   googleAuthHandler,
+  appleAuthHandler,
   verifyHandler,
   resendVerificationHandler,
   forgotPasswordHandler,
