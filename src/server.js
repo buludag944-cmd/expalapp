@@ -34,10 +34,12 @@ const { seedForumSpacesIfEmpty } = require("./services/seedForums");
 const { migrateExpatFields } = require("./migrations/migrateExpatFields");
 const { migrateGoogleAuth } = require("./migrations/migrateGoogleAuth");
 const { migrateEmploymentAndIrp } = require("./migrations/migrateEmploymentAndIrp");
+const { migrateBlogFields } = require("./migrations/migrateBlogFields");
 const eventsRouter = require("./routes/events"); // GET/POST /api/events
 const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
 const adminRouter = require("./routes/admin");
+const { blogRouter } = require("./routes/blog");
 const pushRouter = require("./routes/push");
 const notificationsRouter = require("./routes/notifications");
 const supportRouter = require("./routes/support");
@@ -52,6 +54,7 @@ const { JWT_SECRET } = require("./config/jwt");
 const { serializeUserProfile } = require("./lib/userProfile");
 const { ensureEmploymentTasksForUser } = require("./lib/employmentTasks");
 const { isOwnerOrAdmin } = require("./lib/ownership");
+const { ensureFounderAdmin } = require("./services/ensureFounderAdmin");
 const { Op, fn, col, where } = require("sequelize");
 
 const app = express();
@@ -257,6 +260,7 @@ app.post("/api/login", loginHandler);
 
 app.use("/api/auth", authRouter);
 app.use("/api/admin", verifyToken, adminRouter);
+app.use("/api/blog", blogRouter);
 
 app.get("/api/profile", async (req, res) => {
   try {
@@ -793,6 +797,17 @@ sequelize
     } catch (err) {
       console.error("[migrate] employment/irp:", err.message || err);
       throw err;
+    }
+    try {
+      await migrateBlogFields(sequelize);
+    } catch (err) {
+      console.error("[migrate] blog fields:", err.message || err);
+      throw err;
+    }
+    try {
+      await ensureFounderAdmin();
+    } catch (err) {
+      console.warn("[admin] ensureFounderAdmin:", err.message || err);
     }
     try {
       await seedForumSpacesIfEmpty();

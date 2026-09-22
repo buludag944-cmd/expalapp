@@ -19,6 +19,7 @@ const {
   Event,
   EssentialPost,
   KnowHowPost,
+  BlogPost,
   Comment,
 } = require("../bootstrapModels");
 const { requireAdmin, requireAdminOrBootstrap } = require("../middleware/requireAdmin");
@@ -130,6 +131,11 @@ router.delete("/users", requireAdmin, async (req, res) => {
         ...opts,
       });
 
+      const blog = await BlogPost.destroy({
+        where: { authorId: { [Op.in]: ids } },
+        ...opts,
+      });
+
       const deletedUsers = await User.destroy({
         where: { id: { [Op.in]: ids }, isAdmin: false },
         ...opts,
@@ -143,6 +149,7 @@ router.delete("/users", requireAdmin, async (req, res) => {
         events,
         essentials,
         knowhow,
+        blog,
         deletedUsers,
       };
     });
@@ -161,6 +168,7 @@ router.delete("/users", requireAdmin, async (req, res) => {
         events: counts.events,
         essentials: counts.essentials,
         knowhow: counts.knowhow,
+        blog: counts.blog,
       },
     });
   } catch (err) {

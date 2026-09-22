@@ -9,6 +9,7 @@ const Message = require("./models/Message");
 const Event = require("./models/Event");
 const EssentialPost = require("./models/EssentialPost");
 const KnowHowPost = require("./models/KnowHowPost");
+const BlogPost = require("./models/BlogPost");
 const Comment = require("./models/Comment");
 const DeviceToken = require("./models/DeviceToken");
 const TimelineTask = require("./models/TimelineTask");
@@ -38,6 +39,8 @@ User.hasMany(EssentialPost, { foreignKey: "createdBy" });
 EssentialPost.belongsTo(User, { foreignKey: "createdBy" });
 User.hasMany(KnowHowPost, { foreignKey: "createdBy" });
 KnowHowPost.belongsTo(User, { foreignKey: "createdBy" });
+User.hasMany(BlogPost, { as: "BlogPosts", foreignKey: "authorId" });
+BlogPost.belongsTo(User, { as: "Author", foreignKey: "authorId" });
 User.hasMany(DeviceToken, { foreignKey: "userId", onDelete: "CASCADE" });
 DeviceToken.belongsTo(User, { foreignKey: "userId" });
 
@@ -77,6 +80,7 @@ module.exports = {
   Event,
   EssentialPost,
   KnowHowPost,
+  BlogPost,
   Comment,
   DeviceToken,
   TimelineTask,
