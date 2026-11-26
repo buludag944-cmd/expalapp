@@ -17,6 +17,8 @@ const { Op } = require("sequelize");
 const { BlogPost, User } = require("../bootstrapModels");
 const { verifyToken } = require("../middleware/auth");
 const { requireAdmin } = require("../middleware/requireAdmin");
+const { blogPublisherAuth } = require("../middleware/blogPublisher");
+const { blogPublishLimiter } = require("../lib/blogPublishLimit");
 
 const router = express.Router();
 
@@ -244,6 +246,117 @@ router.post("/", verifyToken, requireAdmin, async (req, res) => {
       return res.status(409).json({ error: "Slug already in use." });
     }
     res.status(500).json({ error: "Could not create post." });
+  }
+});
+
+const EDITORIAL_EMAIL = "editorial@expal.invalid";
+
+async function editorialAuthor() {
+  const existing = await User.findOne({ where: { email: EDITORIAL_EMAIL } });
+  if (existing) return existing;
+  const bcrypt = require("bcrypt");
+  const crypto = require("crypto");
+  return User.create({
+    firstName: "EXPal",
+    lastName: "editorial",
+    email: EDITORIAL_EMAIL,
+    password: await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 10),
+    authProvider: "editorial",
+    isVerified: true,
+    isAdmin: false,
+    onboardingComplete: true,
+  });
+}
+
+/**
+ * PUT /api/blog/by-slug/:slug
+ * Create the post if the slug is new, otherwise update it.
+ * Auth: automation token or a logged-in admin. The token is not accepted elsewhere.
+ */
+router.put("/by-slug/:slug", blogPublishLimiter, blogPublisherAuth, async (req, res) => {
+  try {
+    const urlSlug = slugify(req.params.slug);
+    const requested = String(req.params.slug || "").trim().toLowerCase();
+    if (!urlSlug || urlSlug !== requested) {
+      return res.status(400).json({ error: "Slug format is invalid." });
+    }
+
+    const title = String(req.body.title || "").trim();
+    const content = String(
+      req.body.content != null ? req.body.content : req.body.body || ""
+    ).trim();
+    if (!title || !content) {
+      return res.status(400).json({ error: "Title and content are required." });
+    }
+
+    if (req.body.slug != null && String(req.body.slug).trim() !== "") {
+      const bodySlug = slugify(req.body.slug);
+      if (bodySlug !== urlSlug) {
+        const taken = await BlogPost.findOne({ where: { slug: bodySlug } });
+        if (taken) return res.status(409).json({ error: "Slug already in use." });
+        return res.status(400).json({ error: "Slug in the body must match the URL." });
+      }
+    }
+
+    const excerpt = String(req.body.excerpt || "").trim().slice(0, 500) || content.slice(0, 180);
+    const published = !!req.body.published;
+    const existing = await BlogPost.findOne({ where: { slug: urlSlug } });
+
+    if (!existing) {
+      const author = req.blogPublisher ? await editorialAuthor() : req.adminUser;
+      const post = await BlogPost.create({
+        title,
+        slug: urlSlug,
+        excerpt,
+        body: content,
+        tags: tagsToStore(req.body.tags),
+        seoTitle: req.body.seoTitle ? String(req.body.seoTitle).trim().slice(0, 255) : null,
+        seoDescription: req.body.seoDescription
+          ? String(req.body.seoDescription).trim().slice(0, 320)
+          : null,
+        published,
+        publishedAt: published ? new Date() : null,
+        authorId: author.id,
+      });
+      const withAuthor = await BlogPost.findByPk(post.id, { include: [authorInclude] });
+      return res.status(201).json(serializePost(withAuthor));
+    }
+
+    const wasPublished = existing.published;
+    let publishedAt = existing.publishedAt;
+    if (published && !wasPublished) publishedAt = new Date();
+    if (!published) publishedAt = null;
+
+    await existing.update({
+      title,
+      slug: urlSlug,
+      body: content,
+      excerpt,
+      tags: req.body.tags !== undefined ? tagsToStore(req.body.tags) : existing.tags,
+      seoTitle:
+        req.body.seoTitle !== undefined
+          ? req.body.seoTitle
+            ? String(req.body.seoTitle).trim().slice(0, 255)
+            : null
+          : existing.seoTitle,
+      seoDescription:
+        req.body.seoDescription !== undefined
+          ? req.body.seoDescription
+            ? String(req.body.seoDescription).trim().slice(0, 320)
+            : null
+          : existing.seoDescription,
+      published,
+      publishedAt,
+    });
+
+    const withAuthor = await BlogPost.findByPk(existing.id, { include: [authorInclude] });
+    return res.json(serializePost(withAuthor));
+  } catch (err) {
+    console.error("[blog] upsert", err.message || err);
+    if (err.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({ error: "Slug already in use." });
+    }
+    return res.status(500).json({ error: "Could not save post." });
   }
 });
 
