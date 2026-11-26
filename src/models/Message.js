@@ -6,6 +6,8 @@ const Message = sequelize.define("Message", {
   receiverId: { type: DataTypes.INTEGER, allowNull: false },
   content: { type: DataTypes.TEXT, allowNull: false },
   isRead: { type: DataTypes.BOOLEAN, defaultValue: false },
+  editedAt: { type: DataTypes.DATE, allowNull: true },
+  deletedAt: { type: DataTypes.DATE, allowNull: true },
 });
 
 module.exports = Message;
