@@ -1,10 +1,13 @@
 name: Publish blog article
 
-# When an article file is merged to main, send it to the live blog.
+# Each morning, publish any queued article whose date has arrived.
+# A merge of new article files does the same check. Future dates stay queued.
 # The password never goes in git. Bahar saves the same value in two places:
 #   Render → the API service → Environment → BLOG_PUBLISH_TOKEN
 #   GitHub → expalapp → Settings → Secrets and variables → Actions → BLOG_PUBLISH_TOKEN
 on:
+  schedule:
+    - cron: "30 7 * * *" # 07:30 UTC, 07:30 or 08:30 in Ireland
   push:
     branches: [main]
     paths:
@@ -30,11 +33,7 @@ jobs:
           BLOG_API_URL: https://expalapp-1.onrender.com
         run: |
           set -euo pipefail
-          if [ -z "${BLOG_PUBLISH_TOKEN}" ]; then
-            echo "::error::BLOG_PUBLISH_TOKEN is not set. Add it on Render and as a GitHub Actions secret."
-            exit 1
-          fi
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "schedule" ]; then
             files=$(find content/blog -name '*.md' -not -name 'README.md' 2>/dev/null || true)
           else
             before="${{ github.event.before }}"

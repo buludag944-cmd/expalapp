@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { parseBlogArticle } = require("../src/lib/blogArticleFile");
+const { parseBlogArticle, isArticleDue } = require("../src/lib/blogArticleFile");
 
 test("reads the header and the article body", () => {
   const article = parseBlogArticle(`---
@@ -33,6 +33,22 @@ slug: a-note
 Body text.
 `);
   assert.equal(article.published, true);
+});
+
+test("reads a bracketed tag list and a future publish date", () => {
+  const article = parseBlogArticle(`---
+title: Irish immigration stamps explained
+slug: irish-immigration-stamps-explained
+tags: [stamps, immigration, ireland]
+publishDate: 2026-12-07
+---
+
+Stamp 1 is a work permission.
+`);
+  assert.deepEqual(article.tags, ["stamps", "immigration", "ireland"]);
+  assert.equal(article.publishDate, "2026-12-07");
+  assert.equal(isArticleDue(article, "2026-11-27"), false);
+  assert.equal(isArticleDue(article, "2026-12-07"), true);
 });
 
 test("keeps published false when the header says so", () => {
