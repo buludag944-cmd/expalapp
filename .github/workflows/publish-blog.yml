@@ -1,0 +1,51 @@
+name: Publish blog article
+
+# When an article file is merged to main, send it to the live blog.
+# The password never goes in git. Bahar saves the same value in two places:
+#   Render → the API service → Environment → BLOG_PUBLISH_TOKEN
+#   GitHub → expalapp → Settings → Secrets and variables → Actions → BLOG_PUBLISH_TOKEN
+on:
+  push:
+    branches: [main]
+    paths:
+      - "content/blog/**.md"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Publish changed articles
+        env:
+          BLOG_PUBLISH_TOKEN: ${{ secrets.BLOG_PUBLISH_TOKEN }}
+          BLOG_API_URL: https://expalapp-1.onrender.com
+        run: |
+          set -euo pipefail
+          if [ -z "${BLOG_PUBLISH_TOKEN}" ]; then
+            echo "::error::BLOG_PUBLISH_TOKEN is not set. Add it on Render and as a GitHub Actions secret."
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            files=$(find content/blog -name '*.md' -not -name 'README.md' 2>/dev/null || true)
+          else
+            before="${{ github.event.before }}"
+            if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+              files=$(find content/blog -name '*.md' -not -name 'README.md' 2>/dev/null || true)
+            else
+              files=$(git diff --name-only "$before" "${{ github.sha }}" -- content/blog | grep '\.md$' || true)
+            fi
+          fi
+          if [ -z "$files" ]; then
+            echo "No article files changed."
+            exit 0
+          fi
+          node scripts/publish-blog-file.js $files
