@@ -35,6 +35,8 @@ const { migrateExpatFields } = require("./migrations/migrateExpatFields");
 const { migrateGoogleAuth } = require("./migrations/migrateGoogleAuth");
 const { migrateEmploymentAndIrp } = require("./migrations/migrateEmploymentAndIrp");
 const { migrateBlogFields } = require("./migrations/migrateBlogFields");
+const { migrateMessageEdits } = require("./migrations/migrateMessageEdits");
+const { editOwnMessage, deleteOwnMessage } = require("./lib/messageEdits");
 const eventsRouter = require("./routes/events"); // GET/POST /api/events
 const commentRoutes = require("./routes/comments");
 const { registerHandler, loginHandler, authRouter } = require("./routes/auth");
@@ -403,7 +405,7 @@ app.delete("/api/profile", verifyToken, async (req, res) => {
 app.get("/api/messages/unread-count", verifyToken, async (req, res) => {
   try {
     const count = await Message.count({
-      where: { receiverId: req.user.id, isRead: false },
+      where: { receiverId: req.user.id, isRead: false, deletedAt: null },
     });
     res.json({ count });
   } catch (err) {
@@ -491,6 +493,31 @@ app.post("/api/messages", verifyToken, async (req, res) => {
     res.status(201).json(messageWithSender);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+app.patch("/api/messages/:id", verifyToken, async (req, res) => {
+  try {
+    const outcome = await editOwnMessage(Message, {
+      userId: req.user.id,
+      messageId: req.params.id,
+      content: req.body && req.body.content,
+    });
+    res.status(outcome.status).json(outcome.body);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/messages/:id", verifyToken, async (req, res) => {
+  try {
+    const outcome = await deleteOwnMessage(Message, {
+      userId: req.user.id,
+      messageId: req.params.id,
+    });
+    res.status(outcome.status).json(outcome.body);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 // GET all conversations for current user (one row per peer, latest message + unreadCount)
@@ -802,6 +829,12 @@ sequelize
       await migrateBlogFields(sequelize);
     } catch (err) {
       console.error("[migrate] blog fields:", err.message || err);
+      throw err;
+    }
+    try {
+      await migrateMessageEdits(sequelize);
+    } catch (err) {
+      console.error("[migrate] message edits:", err.message || err);
       throw err;
     }
     try {
