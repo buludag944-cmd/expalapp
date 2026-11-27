@@ -5,7 +5,7 @@
  * Needs BLOG_PUBLISH_TOKEN. The API base defaults to the live Render service.
  */
 const fs = require("fs");
-const { parseBlogArticle } = require("../src/lib/blogArticleFile");
+const { parseBlogArticle, isArticleDue, todayInIreland } = require("../src/lib/blogArticleFile");
 
 async function publishBlogFile(filePath, { token, apiUrl, fetchImpl = fetch } = {}) {
   const article = parseBlogArticle(fs.readFileSync(filePath, "utf8"));
@@ -44,15 +44,26 @@ async function publishBlogFile(filePath, { token, apiUrl, fetchImpl = fetch } = 
 async function main() {
   const files = process.argv.slice(2).filter((name) => name.endsWith(".md") && !name.endsWith("README.md"));
   const token = process.env.BLOG_PUBLISH_TOKEN || "";
+  const today = todayInIreland();
   if (!files.length) {
     console.log("No article files to publish.");
     return;
   }
+  const due = [];
+  for (const filePath of files) {
+    const article = parseBlogArticle(fs.readFileSync(filePath, "utf8"));
+    if (!isArticleDue(article, today)) {
+      console.log(`Waiting until ${article.publishDate || "unpublished"} for ${article.slug}`);
+      continue;
+    }
+    due.push(filePath);
+  }
+  if (!due.length) return;
   if (!token) {
     console.error("BLOG_PUBLISH_TOKEN is not set. Add it in Render and in the GitHub Actions secret.");
     process.exit(1);
   }
-  for (const filePath of files) {
+  for (const filePath of due) {
     const saved = await publishBlogFile(filePath, { token, apiUrl: process.env.BLOG_API_URL });
     console.log(`${saved.published ? "Published" : "Saved draft"} ${saved.slug}`);
   }

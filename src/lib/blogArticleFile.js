@@ -41,6 +41,8 @@ function parseBlogArticle(markdown) {
   if (!content) throw new Error("Article body is empty.");
 
   const tags = (fields.tags || "")
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
@@ -52,9 +54,22 @@ function parseBlogArticle(markdown) {
     tags,
     seoTitle: fields.seoTitle || "",
     seoDescription: fields.seoDescription || "",
+    publishDate: fields.publishDate || "",
     published: fields.published == null || fields.published === "" ? true : fields.published !== "false",
     content,
   };
 }
 
-module.exports = { parseBlogArticle };
+/** Today's date in Ireland, as YYYY-MM-DD. */
+function todayInIreland(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin" }).format(now);
+}
+
+/** An article is ready when its publish date is today or earlier in Ireland. */
+function isArticleDue(article, today = todayInIreland()) {
+  if (!article.published) return false;
+  if (!article.publishDate) return true;
+  return article.publishDate <= today;
+}
+
+module.exports = { parseBlogArticle, isArticleDue, todayInIreland };
