@@ -17,7 +17,8 @@
     "test:e2e-email": "node scripts/e2e-email-verify-flow.js",
     "test:full-stack": "bash scripts/full-stack-verify-flow.sh",
     "render:env": "node scripts/build-render-env.js",
-    "render:firebase-import": "node scripts/build-render-firebase-import.js"
+    "render:firebase-import": "node scripts/build-render-firebase-import.js",
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
